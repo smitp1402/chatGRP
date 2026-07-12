@@ -11,6 +11,7 @@
   "dependencies": {
     "@base-ui/react": "^1.6.0",
     "@chatgrp/shared": "workspace:*",
+    "@dagrejs/dagre": "^3.0.0",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.110.2",
     "@vercel/analytics": "^2.0.1",
