@@ -1,0 +1,12 @@
+{
+  "name": "@chatgrp/shared",
+  "version": "0.0.0",
+  "private": true,
+  "main": "index.ts",
+  "types": "index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./models": "./models.ts",
+    "./credits": "./credits.ts"
+  }
+}

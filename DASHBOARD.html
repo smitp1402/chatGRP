@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChatGRP — Project Dashboard</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --surface:#ffffff; --surface-2:#f1f3f6; --border:#e3e7ee;
+    --text:#1a1d24; --muted:#5b6472; --faint:#8b94a3;
+    --primary:#4f46e5; --primary-soft:#eef0fe; --accent:#0ea5a4; --accent-soft:#e2f6f5;
+    --shadow:0 1px 2px rgba(20,25,40,.05),0 4px 16px rgba(20,25,40,.05);
+    --shadow-lg:0 8px 30px rgba(20,25,40,.10);
+    --radius:12px; --radius-sm:8px;
+    --ns:#94a3b8; --ns-soft:#eef1f5;   /* not started */
+    --ip:#d97706; --ip-soft:#fdf1e0;   /* in progress */
+    --dn:#16a34a; --dn-soft:#e6f6ec;   /* done */
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0e1117; --surface:#161b23; --surface-2:#1b212b; --border:#28303c;
+      --text:#e7ebf2; --muted:#9aa5b4; --faint:#6b7688;
+      --primary:#7c74ff; --primary-soft:#20213b; --accent:#2dd4d0; --accent-soft:#12302f;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.3);
+      --shadow-lg:0 8px 30px rgba(0,0,0,.45);
+      --ns:#7c8698; --ns-soft:#20262f;
+      --ip:#e0a13a; --ip-soft:#32281a;
+      --dn:#3fbf6b; --dn-soft:#16281d;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#f7f8fa; --surface:#ffffff; --surface-2:#f1f3f6; --border:#e3e7ee;
+    --text:#1a1d24; --muted:#5b6472; --faint:#8b94a3;
+    --primary:#4f46e5; --primary-soft:#eef0fe; --accent:#0ea5a4; --accent-soft:#e2f6f5;
+    --shadow:0 1px 2px rgba(20,25,40,.05),0 4px 16px rgba(20,25,40,.05);
+    --shadow-lg:0 8px 30px rgba(20,25,40,.10);
+    --ns:#94a3b8; --ns-soft:#eef1f5; --ip:#d97706; --ip-soft:#fdf1e0; --dn:#16a34a; --dn-soft:#e6f6ec;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0e1117; --surface:#161b23; --surface-2:#1b212b; --border:#28303c;
+    --text:#e7ebf2; --muted:#9aa5b4; --faint:#6b7688;
+    --primary:#7c74ff; --primary-soft:#20213b; --accent:#2dd4d0; --accent-soft:#12302f;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.3);
+    --shadow-lg:0 8px 30px rgba(0,0,0,.45);
+    --ns:#7c8698; --ns-soft:#20262f; --ip:#e0a13a; --ip-soft:#32281a; --dn:#3fbf6b; --dn-soft:#16281d;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5; -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 20px 72px}
+  a{color:var(--primary);text-decoration:none}
+
+  /* Header */
+  header.top{
+    position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--border);
+  }
+  .top-inner{max-width:1180px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .logo{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,var(--primary),var(--accent));
+    display:grid;place-items:center;color:#fff;font-weight:800;font-size:15px;flex-shrink:0}
+  .brand h1{font-size:16px;margin:0;font-weight:700;letter-spacing:-.2px}
+  .brand p{margin:0;font-size:12px;color:var(--muted)}
+  .spacer{flex:1}
+  .theme-btn{
+    border:1px solid var(--border);background:var(--surface);color:var(--text);
+    border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:7px;
+    transition:background .18s,border-color .18s;
+  }
+  .theme-btn:hover{background:var(--surface-2)}
+
+  /* Hero */
+  .hero{padding:34px 0 8px}
+  .hero h2{font-size:clamp(24px,4vw,34px);margin:0 0 10px;font-weight:800;letter-spacing:-.6px}
+  .hero .lead{font-size:15px;color:var(--muted);max-width:760px;margin:0}
+  .tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+  .tag{font-size:12px;padding:5px 11px;border-radius:100px;background:var(--surface);border:1px solid var(--border);color:var(--muted)}
+  .tag.p{background:var(--primary-soft);border-color:transparent;color:var(--primary);font-weight:600}
+  .tag.a{background:var(--accent-soft);border-color:transparent;color:var(--accent);font-weight:600}
+
+  /* Section */
+  section{margin-top:38px}
+  .sec-head{display:flex;align-items:baseline;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+  .sec-head h3{font-size:18px;margin:0;font-weight:700;letter-spacing:-.3px}
+  .sec-head .note{font-size:12.5px;color:var(--faint)}
+
+  /* Stat cards */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow)}
+  .stat .k{font-size:26px;font-weight:800;letter-spacing:-.5px;line-height:1.1}
+  .stat .l{font-size:12.5px;color:var(--muted);margin-top:4px}
+  .stat .s{font-size:11.5px;color:var(--faint);margin-top:6px}
+
+  /* Legend */
+  .legend{display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--muted)}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .dot.ns{background:var(--ns)} .dot.ip{background:var(--ip)} .dot.dn{background:var(--dn)}
+
+  /* Progress overall */
+  .overall{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow)}
+  .overall .row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+  .overall .row b{font-size:14px} .overall .row span{font-size:12.5px;color:var(--muted)}
+  .bar{height:9px;border-radius:100px;background:var(--surface-2);overflow:hidden;border:1px solid var(--border)}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--primary),var(--accent));border-radius:100px;transition:width 1s ease}
+
+  /* Timeline */
+  .timeline{position:relative;overflow-x:auto;padding:6px 2px 14px}
+  .track{display:flex;gap:0;min-width:760px}
+  .tnode{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 6px}
+  .tline{position:absolute;top:15px;left:50%;width:100%;height:2px;background:var(--border);z-index:0}
+  .tnode:last-child .tline{display:none}
+  .tcirc{width:32px;height:32px;border-radius:50%;background:var(--surface);border:2px solid var(--ns);
+    display:grid;place-items:center;font-weight:700;font-size:13px;color:var(--muted);z-index:1;position:relative}
+  .tname{font-size:11.5px;font-weight:600;margin-top:8px;line-height:1.25}
+  .tdur{font-size:11px;color:var(--faint);margin-top:2px}
+
+  /* Phase cards */
+  .phases{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+  .phase{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);
+    overflow:hidden;transition:box-shadow .2s,transform .2s;display:flex;flex-direction:column}
+  .phase:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+  .phase .head{padding:16px 18px 12px;cursor:pointer;display:flex;flex-direction:column;gap:10px}
+  .phase .top-row{display:flex;align-items:center;gap:10px}
+  .pnum{width:30px;height:30px;border-radius:8px;background:var(--primary-soft);color:var(--primary);
+    font-weight:800;font-size:13px;display:grid;place-items:center;flex-shrink:0}
+  .ptitle{font-size:14.5px;font-weight:700;letter-spacing:-.2px;flex:1;line-height:1.25}
+  .pill{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:100px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;
+    background:var(--ns-soft);color:var(--ns)}
+  .pgoal{font-size:12.5px;color:var(--muted);line-height:1.45}
+  .pmeta{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:var(--faint);gap:10px}
+  .pbar{height:6px;border-radius:100px;background:var(--surface-2);overflow:hidden;border:1px solid var(--border);flex:1;max-width:150px}
+  .pbar>i{display:block;height:100%;width:0;background:var(--ns);border-radius:100px}
+  .chev{transition:transform .25s;color:var(--faint);font-size:12px}
+  .phase.open .chev{transform:rotate(180deg)}
+  .pbody{max-height:0;overflow:hidden;transition:max-height .3s ease;border-top:1px solid transparent}
+  .phase.open .pbody{max-height:640px;border-top-color:var(--border)}
+  .pbody-in{padding:14px 18px 18px}
+  .pbody h5{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--faint);margin:0 0 8px}
+  .pbody h5:not(:first-child){margin-top:16px}
+  .flist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+  .flist li{font-size:12.5px;color:var(--text);display:flex;gap:8px;align-items:flex-start;line-height:1.4}
+  .flist li::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);margin-top:6px;flex-shrink:0}
+  .dlist li::before{background:var(--ns);border:1px solid var(--muted);background:transparent;width:11px;height:11px;border-radius:3px;margin-top:2px}
+
+  /* Two-col */
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:760px){.cols{grid-template-columns:1fr}}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px}
+  .card h4{font-size:14px;margin:0 0 14px;font-weight:700}
+
+  /* Tech stack grid */
+  .tech{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+  .titem{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 13px}
+  .titem .n{font-size:13px;font-weight:700}
+  .titem .r{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.35}
+
+  /* Req bars */
+  .reqrow{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .reqrow .lab{font-size:12.5px;width:96px;flex-shrink:0;color:var(--muted)}
+  .reqbar{flex:1;height:22px;border-radius:6px;background:var(--surface-2);overflow:hidden;display:flex;border:1px solid var(--border)}
+  .reqbar>i{display:flex;align-items:center;justify-content:center;height:100%;font-size:11px;font-weight:700;color:#fff}
+  .reqbar>i.must{background:var(--primary)}
+  .reqbar>i.should{background:var(--accent)}
+  .reqbar>i.nfr{background:var(--muted)}
+
+  /* Credit table / cost table */
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--border)}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--faint);font-weight:700}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .tblwrap{overflow-x:auto}
+  .up{color:var(--ip);font-weight:700}
+
+  /* Risks */
+  .risk{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);align-items:flex-start}
+  .risk:last-child{border-bottom:0}
+  .risk .txt{flex:1}
+  .risk .rt{font-size:13px;font-weight:600;line-height:1.35}
+  .risk .rm{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.4}
+  .badges{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;max-width:120px;justify-content:flex-end}
+  .bdg{font-size:10px;font-weight:700;padding:3px 8px;border-radius:100px;white-space:nowrap}
+  .bdg.h{background:var(--ip-soft);color:var(--ip)}
+  .bdg.m{background:var(--accent-soft);color:var(--accent)}
+  .bdg.l{background:var(--ns-soft);color:var(--ns)}
+
+  footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--border);font-size:12px;color:var(--faint);text-align:center}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="logo">C</div>
+    <div class="brand">
+      <h1>ChatGRP</h1>
+      <p>Project Dashboard · generated from PROJECT_PLAN.md</p>
+    </div>
+    <div class="spacer"></div>
+    <button class="theme-btn" id="themeBtn" aria-label="Toggle theme">
+      <span id="themeIcon">◐</span><span id="themeLbl">Theme</span>
+    </button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- HERO -->
+  <div class="hero">
+    <h2>A visual AI chat app where conversations are graphs</h2>
+    <p class="lead">Instead of a single scrolling thread, every question-and-answer exchange becomes a <b>node</b> in an interactive graph. Users branch conversations from any historical node, switch the AI model per message, and navigate their entire thinking process as a living knowledge map. Shipped as a monetized SaaS (Free / Pro / Team) with credit quotas, a reusable Prompt Library, and a customizable dockable workspace.</p>
+    <div class="tags">
+      <span class="tag p">Visual AI Chat</span>
+      <span class="tag a">Graph Canvas</span>
+      <span class="tag">6 Models</span>
+      <span class="tag">Credit Billing</span>
+      <span class="tag">Prompt Library</span>
+      <span class="tag">Dockable Layout</span>
+      <span class="tag">Dual Backend</span>
+    </div>
+  </div>
+
+  <!-- TOP STATS -->
+  <section>
+    <div class="stats">
+      <div class="stat"><div class="k">9</div><div class="l">Implementation phases</div><div class="s">Phase 0 → Phase 8</div></div>
+      <div class="stat"><div class="k">~12 wk</div><div class="l">Estimated duration</div><div class="s">Single dev, dual backend</div></div>
+      <div class="stat"><div class="k">25</div><div class="l">Requirements</div><div class="s">18 functional · 7 non-functional</div></div>
+      <div class="stat"><div class="k">9</div><div class="l">Database tables</div><div class="s">Postgres + RLS</div></div>
+      <div class="stat"><div class="k">0%</div><div class="l">Overall progress</div><div class="s">Not started</div></div>
+    </div>
+  </section>
+
+  <!-- OVERALL PROGRESS + LEGEND -->
+  <section>
+    <div class="sec-head">
+      <h3>Progress Overview</h3>
+      <span class="note">All phases start at 0% — no implementation has begun.</span>
+    </div>
+    <div class="overall">
+      <div class="row">
+        <b>Overall completion</b>
+        <span><span class="dot ns"></span>0 of 9 phases complete</span>
+      </div>
+      <div class="bar"><i id="overallBar"></i></div>
+      <div class="legend" style="margin-top:16px">
+        <span><span class="dot ns"></span>Not started</span>
+        <span><span class="dot ip"></span>In progress</span>
+        <span><span class="dot dn"></span>Done</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- TIMELINE -->
+  <section>
+    <div class="sec-head">
+      <h3>Pipeline / Timeline</h3>
+      <span class="note">Dependency-ordered — each phase ships to the live URL.</span>
+    </div>
+    <div class="timeline">
+      <div class="track" id="track"></div>
+    </div>
+  </section>
+
+  <!-- PHASES -->
+  <section>
+    <div class="sec-head">
+      <h3>Implementation Phases</h3>
+      <span class="note">Click a phase to expand goals, features, and deliverables.</span>
+    </div>
+    <div class="phases" id="phases"></div>
+  </section>
+
+  <!-- REQUIREMENTS -->
+  <section>
+    <div class="sec-head"><h3>Requirements Summary</h3></div>
+    <div class="cols">
+      <div class="card">
+        <h4>By type &amp; priority</h4>
+        <div class="reqrow">
+          <div class="lab">Must-have</div>
+          <div class="reqbar"><i class="must" style="width:66.6%">12</i></div>
+        </div>
+        <div class="reqrow">
+          <div class="lab">Should-have</div>
+          <div class="reqbar"><i class="should" style="width:33.3%">6</i></div>
+        </div>
+        <div class="reqrow">
+          <div class="lab">Non-functional</div>
+          <div class="reqbar"><i class="nfr" style="width:100%">7 targets</i></div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:6px">18 functional requirements (FR-01–FR-18) + 7 non-functional (NFR-01–NFR-07).</div>
+      </div>
+      <div class="card">
+        <h4>Domains covered</h4>
+        <div class="tech">
+          <div class="titem"><div class="n">Sessions</div><div class="r">Create / load / persist</div></div>
+          <div class="titem"><div class="n">Canvas</div><div class="r">Nodes, edges, search</div></div>
+          <div class="titem"><div class="n">Chat Panel</div><div class="r">Branch, breadcrumb</div></div>
+          <div class="titem"><div class="n">Model Switching</div><div class="r">6 models, per-message</div></div>
+          <div class="titem"><div class="n">Context</div><div class="r">Root→node, isolated</div></div>
+          <div class="titem"><div class="n">Prompt Library</div><div class="r">Variables, sharing</div></div>
+          <div class="titem"><div class="n">Layout</div><div class="r">Dockable presets</div></div>
+          <div class="titem"><div class="n">Billing</div><div class="r">Stripe + credits</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="cols" style="margin-top:16px">
+      <div class="card">
+        <h4>Non-functional targets</h4>
+        <div class="tblwrap"><table>
+          <tr><th>Category</th><th>Target</th></tr>
+          <tr><td>p95 AI latency</td><td class="num">&lt; 3s</td></tr>
+          <tr><td>Peak concurrent streams</td><td class="num">500</td></tr>
+          <tr><td>Active users / throughput</td><td class="num">10K · ~50 msg/day</td></tr>
+          <tr><td>Input token cap / request</td><td class="num">4,096</td></tr>
+          <tr><td>Security</td><td class="num">RLS · JWT · WAF</td></tr>
+          <tr><td>Observability</td><td class="num">Sentry · PostHog · Axiom</td></tr>
+        </table></div>
+      </div>
+      <div class="card">
+        <h4>Architecture at a glance</h4>
+        <ul class="flist" style="gap:10px">
+          <li><b>apps/web</b> — Next.js 14: all UI + non-AI CRUD, auth, Stripe webhooks (Vercel).</li>
+          <li><b>apps/ai</b> — FastAPI: SSE streaming, context builder, model router, credit deduction (Railway).</li>
+          <li><b>packages/shared</b> — TS types + Zod schemas: model registry, credit table, API contracts.</li>
+          <li><b>Supabase Postgres</b> — 9 tables, RLS per-user isolation, single source of truth.</li>
+          <li><b>Rule:</b> touches an AI model / streaming → FastAPI. Everything else → Next.js.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- TECH STACK -->
+  <section>
+    <div class="sec-head"><h3>Tech Stack</h3><span class="note">Buy / open-source where possible; build the streaming core.</span></div>
+    <div class="tech">
+      <div class="titem"><div class="n">Next.js 14</div><div class="r">Frontend + non-AI API routes</div></div>
+      <div class="titem"><div class="n">FastAPI</div><div class="r">AI streaming layer</div></div>
+      <div class="titem"><div class="n">Supabase</div><div class="r">Postgres + Auth + RLS</div></div>
+      <div class="titem"><div class="n">React Flow</div><div class="r">@xyflow/react v12 canvas</div></div>
+      <div class="titem"><div class="n">Dockview</div><div class="r">v7 dockable layout</div></div>
+      <div class="titem"><div class="n">Stripe</div><div class="r">Subscriptions + webhooks</div></div>
+      <div class="titem"><div class="n">Zustand</div><div class="r">Client state</div></div>
+      <div class="titem"><div class="n">Tailwind + Shadcn</div><div class="r">Styling / UI kit</div></div>
+      <div class="titem"><div class="n">Upstash Redis</div><div class="r">Rate limiting only</div></div>
+      <div class="titem"><div class="n">Cloudflare</div><div class="r">CDN / WAF / DDoS</div></div>
+      <div class="titem"><div class="n">OpenAI · Anthropic · Google</div><div class="r">Model providers</div></div>
+      <div class="titem"><div class="n">Sentry · PostHog · Axiom</div><div class="r">Monitoring stack</div></div>
+    </div>
+  </section>
+
+  <!-- COST -->
+  <section>
+    <div class="sec-head"><h3>Cost Summary</h3></div>
+    <div class="stats" style="margin-bottom:16px">
+      <div class="stat"><div class="k">~$40K</div><div class="l">Dev labor value</div><div class="s">Range ~$36K–44K</div></div>
+      <div class="stat"><div class="k">~$20</div><div class="l">Cash dev cost (solo)</div><div class="s">AI test spend; up to ~$200</div></div>
+      <div class="stat"><div class="k">$155–320</div><div class="l">Monthly ops @ 10K users</div><div class="s">Infra only; AI is pass-through</div></div>
+      <div class="stat"><div class="k">$1.9–3.8K</div><div class="l">Annual ops @ 10K users</div><div class="s">~$7+ net margin / heavy Pro user</div></div>
+    </div>
+    <div class="cols">
+      <div class="card">
+        <h4>Monthly ops by scale (infra)</h4>
+        <div class="tblwrap"><table>
+          <tr><th>Users</th><th class="num">100</th><th class="num">1K</th><th class="num">10K</th><th class="num">100K</th></tr>
+          <tr><td>Vercel</td><td class="num">$20</td><td class="num">$20</td><td class="num">$40–67</td><td class="num">$150–400</td></tr>
+          <tr><td>Supabase</td><td class="num">$25</td><td class="num">$25</td><td class="num">$25–60</td><td class="num">$120–400</td></tr>
+          <tr><td>Railway</td><td class="num">$20</td><td class="num">$20</td><td class="num">$40–80</td><td class="num">$200–600</td></tr>
+          <tr><td>Redis</td><td class="num">$0–10</td><td class="num">$10</td><td class="num">$10–19</td><td class="num">$60–120</td></tr>
+          <tr><td>Cloudflare</td><td class="num">Free</td><td class="num">Free</td><td class="num">$0–20</td><td class="num">$20–200</td></tr>
+          <tr><td>Monitoring</td><td class="num">Free</td><td class="num">Free</td><td class="num">$0–75</td><td class="num">$100–400</td></tr>
+          <tr style="font-weight:700"><td>Total</td><td class="num">$75–90</td><td class="num">$85–100</td><td class="num">$155–320</td><td class="num">$650–2.1K</td></tr>
+        </table></div>
+      </div>
+      <div class="card">
+        <h4>Adjusted credit table</h4>
+        <div class="tblwrap"><table>
+          <tr><th>Model</th><th class="num">PRD</th><th class="num">Adjusted</th></tr>
+          <tr><td>GPT-4o mini</td><td class="num">2</td><td class="num">2</td></tr>
+          <tr><td>Gemini Flash</td><td class="num">3</td><td class="num">3</td></tr>
+          <tr><td>Gemini Pro</td><td class="num">5</td><td class="num up">7</td></tr>
+          <tr><td>GPT-4o</td><td class="num">10</td><td class="num">10</td></tr>
+          <tr><td>Claude Sonnet</td><td class="num">8</td><td class="num up">10</td></tr>
+          <tr><td>Claude Opus</td><td class="num">15</td><td class="num">15</td></tr>
+        </table></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:10px">Calibrated for a uniform ~$0.0018/credit margin — profit is protected regardless of which model users pick.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RISKS -->
+  <section>
+    <div class="sec-head"><h3>Key Risks</h3><span class="note">Impact · Likelihood</span></div>
+    <div class="card" id="risks"></div>
+  </section>
+
+  <footer>
+    ChatGRP · generated from PROJECT_PLAN.md (2026-07-11) · Status: pre-implementation · All phases Not started
+  </footer>
+</div>
+
+<script>
+const PHASES = [
+  {n:0,title:"Scaffold & Foundation",dur:"~1 wk",
+   goal:"A deployed, authenticated empty app on real infrastructure, with the full DB schema live.",
+   features:["Auth — sign up (email + Google) and log in","App shell — migrated v0 UI renders with routing"],
+   deliverables:["pnpm monorepo (web / ai / shared)","Migrate v0 export into apps/web + configs","FastAPI skeleton with /health + JWT verify","Supabase: 9 tables + RLS + seed pack","Supabase Auth wired to login/signup","Deploy skeleton: Vercel + Railway + Cloudflare + Stripe test","packages/shared scaffolding"]},
+  {n:1,title:"Sessions & Graph Canvas",dur:"~1.5 wk",
+   goal:"Persisted sessions and a real React Flow canvas rendering nodes from the database.",
+   features:["Session CRUD — create, rename, delete, load; persists","Graph canvas — nodes + directed edges, pan/zoom/auto-layout"],
+   deliverables:["Next.js session + node routes","Sessions sidebar wired to real data","Canvas on @xyflow/react with custom node","Auto-layout (dagre/elk); persist position/state","Zustand store for canvas + session state"]},
+  {n:2,title:"Chat Panel & Mock Streaming",dur:"~1.5 wk",
+   goal:"The full chat loop works end-to-end against a mock AI stream — no provider costs.",
+   features:["Chat panel — branch opens, breadcrumb, history, send","Generation lifecycle — message saved, mock SSE, node created"],
+   deliverables:["FastAPI POST /generate mock SSE + cancel","Context builder: walk parent_id, branch-isolated","Message + node + attempt records with lifecycle","Chat panel UI: breadcrumb, streaming, cancel","New node appears on canvas on completion"]},
+  {n:3,title:"Multi-Model (Real AI)",dur:"~1.5 wk",
+   goal:"Swap mock for real providers; switch models per message with badges and token accounting.",
+   features:["Model switching — dropdown, 6 models, per-message, badge","Real streaming — OpenAI/Anthropic/Google router + budgeting"],
+   deliverables:["Model router in FastAPI (3 SDKs)","Replace mock with real provider streams","Token counting; 4,096 cap + context truncation","model_id on node; badge + credit cost","Plan-filtered model dropdown (stub)","Token usage counter in chat panel"]},
+  {n:4,title:"Branching, Fork & Export",dur:"~1.5 wk",
+   goal:"Full graph exploration — reply anywhere, fork siblings, collapse, star, search, export.",
+   features:["Branching — reply creates child; fork creates sibling","Canvas power — collapse/expand, star, content search","Export — any branch → markdown with breadcrumb"],
+   deliverables:["Reply-from-any-node and fork logic","Collapse/expand branch (persist collapsed)","Node content search → jump/center","GET /nodes/:id/export → markdown","Star filter/highlight on canvas"]},
+  {n:5,title:"Billing & Credits",dur:"~1.5 wk",
+   goal:"Real subscriptions, credit quotas enforced, plan-gated models.",
+   features:["Subscriptions — Stripe checkout Free/Pro/Team; webhooks sync","Credits — per-message deduction, hard cap, monthly reset, gating"],
+   deliverables:["Stripe products (Pro $12, Team $30/user) + portal","Webhooks: signature verify + idempotency","Atomic credit deduction guarded by monthly cap","Hard-cap enforcement + upsell message","Plan-gated model dropdown","Credits counter wired to ledger","Adjusted credit table in shared"]},
+  {n:6,title:"Prompt Library",dur:"~1.5 wk",
+   goal:"A full personal (and team) prompt knowledge base with variables and quick-insert.",
+   features:["Prompt CRUD + folders — save, edit, organize; kinds","Insertion — {{variables}}, quick-insert / slash command","Discovery + sharing — search, star, recent, team, tiers"],
+   deliverables:["Prompt + folder routes + /use","Prompt library panel (search, filter, star, recent)","Save-prompt action + editor with variables","Variable-fill dialog at insert","Slash-command insert + default model","Team visibility + Free 10-prompt cap","Seed starter pack"]},
+  {n:7,title:"Customizable Layout",dur:"~1.5 wk",
+   goal:"A dockable, savable workspace with presets, global default, and per-session override.",
+   features:["Dockable panels — dock, resize, show/hide via Dockview","Layout mgmt — presets, save, global default, override, Pro gate"],
+   deliverables:["Dockview integration; serialize/restore tree","Built-in presets (Canvas / Split / Chat / Zen)","Layout + settings + session-layout routes","Global default synced; per-session override","Responsive stacked/tabbed view","Pro-gate custom layout creation"]},
+  {n:8,title:"Polish & Launch",dur:"~1 wk",
+   goal:"Production hardening and observability.",
+   features:["Production UX — skeletons, empty states, error handling","Observability + security — Sentry, PostHog, Axiom, WAF, rate limit"],
+   deliverables:["Skeleton loaders + empty-state onboarding","Global error handling + friendly messages","Dark-mode audit across new components","Sentry + PostHog + Axiom in both apps","Redis rate limiting + Cloudflare WAF + HTTPS","Final QA + load test toward 500 streams"]}
+];
+
+const RISKS = [
+  {t:"Dual-backend cross-service auth complexity",m:"Verify Supabase JWT in FastAPI; deploy skeleton early to shake out CORS/auth.",i:"h",l:"m"},
+  {t:"SSE streaming buffered by proxies (Cloudflare/Vercel)",m:"Test streaming on the deployed URL from Phase 2; set no-buffering headers.",i:"h",l:"m"},
+  {t:"Credit overspend on concurrent streams",m:"Atomic Postgres deduction inside the ledger-write transaction.",i:"h",l:"m"},
+  {t:"Timeline overrun (12 wk vs PRD's 8)",m:"Dependency-ordered scope; Prompt Library + Layout are the cut candidates.",i:"m",l:"h"},
+  {t:"Provider API/model drift (GPT-5 / Claude 4.6 / Gemini 3.x)",m:"Pin SDK versions; finalize model IDs at Phase 3; keep registry in shared.",i:"m",l:"h"},
+  {t:"v0 UI ↔ production schema mismatch",m:"Treat v0 as a skin; wire to PRD schema during Phases 1–2.",i:"m",l:"h"},
+  {t:"500 concurrent streams exhaust Railway resources",m:"Load test in Phase 8; autoscale / backpressure / queue.",i:"m",l:"m"},
+  {t:"Stripe webhook double-processing",m:"Idempotency keys + event-id dedupe.",i:"m",l:"l"},
+  {t:"Dockview serialization drift across versions",m:"Version the tree schema; migrate on read.",i:"l",l:"m"}
+];
+
+// Status: all phases not started
+const STATUS = "Not started";
+
+// Render timeline
+const track = document.getElementById('track');
+PHASES.forEach(p=>{
+  const el = document.createElement('div');
+  el.className='tnode';
+  el.innerHTML = `<div class="tline"></div><div class="tcirc">${p.n}</div>
+    <div class="tname">${p.title}</div><div class="tdur">${p.dur}</div>`;
+  track.appendChild(el);
+});
+
+// Render phase cards
+const phasesEl = document.getElementById('phases');
+PHASES.forEach(p=>{
+  const card = document.createElement('div');
+  card.className='phase';
+  const feats = p.features.map(f=>`<li>${f}</li>`).join('');
+  const dels = p.deliverables.map(d=>`<li>${d}</li>`).join('');
+  card.innerHTML = `
+    <div class="head" tabindex="0" role="button" aria-expanded="false">
+      <div class="top-row">
+        <div class="pnum">${p.n}</div>
+        <div class="ptitle">${p.title}</div>
+        <span class="pill">${STATUS}</span>
+      </div>
+      <div class="pgoal">${p.goal}</div>
+      <div class="pmeta">
+        <span>${p.dur}</span>
+        <div class="pbar"><i style="width:0%"></i></div>
+        <span>0% <span class="chev">▾</span></span>
+      </div>
+    </div>
+    <div class="pbody"><div class="pbody-in">
+      <h5>Features Completed</h5>
+      <ul class="flist">${feats}</ul>
+      <h5>Deliverables</h5>
+      <ul class="flist dlist">${dels}</ul>
+    </div></div>`;
+  const head = card.querySelector('.head');
+  const toggle = ()=>{
+    const open = card.classList.toggle('open');
+    head.setAttribute('aria-expanded', open?'true':'false');
+  };
+  head.addEventListener('click', toggle);
+  head.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();} });
+  phasesEl.appendChild(card);
+});
+
+// Render risks
+const risksEl = document.getElementById('risks');
+const impLbl = {h:'High',m:'Med',l:'Low'};
+RISKS.forEach(r=>{
+  const el = document.createElement('div');
+  el.className='risk';
+  el.innerHTML = `<div class="txt"><div class="rt">${r.t}</div><div class="rm">${r.m}</div></div>
+    <div class="badges"><span class="bdg ${r.i}">Impact ${impLbl[r.i]}</span><span class="bdg ${r.l}">Likely ${impLbl[r.l]}</span></div>`;
+  risksEl.appendChild(el);
+});
+
+// Overall bar animate to 0
+requestAnimationFrame(()=>{ document.getElementById('overallBar').style.width='0%'; });
+
+// Theme toggle
+const root = document.documentElement;
+const btn = document.getElementById('themeBtn');
+const icon = document.getElementById('themeIcon');
+const lbl = document.getElementById('themeLbl');
+function apply(mode){
+  if(mode==='system'){ root.removeAttribute('data-theme'); }
+  else root.setAttribute('data-theme', mode);
+  const dark = mode==='dark' || (mode==='system' && matchMedia('(prefers-color-scheme:dark)').matches);
+  icon.textContent = dark ? '☾' : '☀';
+  lbl.textContent = mode.charAt(0).toUpperCase()+mode.slice(1);
+}
+let mode = 'system';
+apply(mode);
+btn.addEventListener('click', ()=>{
+  mode = mode==='system' ? 'light' : mode==='light' ? 'dark' : 'system';
+  apply(mode);
+});
+</script>
+</body>
+</html>

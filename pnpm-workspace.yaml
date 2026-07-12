@@ -1,0 +1,8 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# sharp/unrs-resolver ship prebuilt binaries; their build scripts are safe to skip
+ignoredBuiltDependencies:
+  - sharp
+  - unrs-resolver

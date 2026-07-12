@@ -1,0 +1,8 @@
+{
+  "name": "chatgrp",
+  "private": true,
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "dev:ai": "pnpm --filter ai dev"
+  }
+}
