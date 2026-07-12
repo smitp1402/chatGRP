@@ -21,7 +21,7 @@ export default function AppPage() {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
-      <AppSidebar activeId="graph-theory" />
+      <AppSidebar />
       <main className="relative flex-1">
         <GraphCanvas
           nodes={GRAPH_NODES}

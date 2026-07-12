@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { AuthShell } from "@/components/auth-shell"
+import { DevLoginButton } from "@/components/dev-login-button"
 import { GoogleButton } from "@/components/google-button"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -42,6 +43,8 @@ export default function LoginPage() {
           Sign in to continue to ChatGRP.
         </p>
       </div>
+
+      <DevLoginButton />
 
       <GoogleButton label="Continue with Google" />
 
