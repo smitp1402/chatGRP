@@ -1,21 +1,26 @@
 """ChatGRP AI layer (FastAPI).
 
 Owns everything that touches an AI model: streaming, context building, model
-routing, generation-attempt tracking, and credit deduction. This skeleton
-implements health + auth + a MOCK streaming /generate; real provider calls are
-wired at Phase 3 (Multi-Model).
+routing, generation-attempt tracking, and (later) credit deduction. This phase
+implements a real node/message lifecycle with MOCK token streaming; real
+provider calls arrive at Phase 3 (Multi-Model).
 """
-import asyncio
+import json
+from datetime import datetime, timezone
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from .auth import verify_user
+from .budget import approx_tokens, enforce_budget, total_tokens
 from .config import settings
+from .context import build_context
+from .db import db, session_belongs_to
+from .router import stream_completion
 
-app = FastAPI(title="ChatGRP AI Layer", version="0.1.0")
+app = FastAPI(title="ChatGRP AI Layer", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,11 +32,14 @@ app.add_middleware(
 
 
 class GenerateRequest(BaseModel):
+    session_id: str
     message: str
     model_id: str = "gpt-4o-mini"
-    node_id: str | None = None
-    session_id: str | None = None
     parent_id: str | None = None
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 @app.get("/health")
@@ -41,31 +49,113 @@ def health() -> dict:
 
 @app.post("/generate")
 async def generate(body: GenerateRequest, user_id: str = Depends(verify_user)):
-    """Stream a MOCK assistant response over SSE.
+    """Create a node (reply to parent_id), then stream a mock assistant answer.
 
-    Phase 3 replaces the mock with: build context (walk parent_id), route to the
-    provider for model_id, stream real tokens, persist the assistant message,
-    record the generation_attempt, and deduct credits.
+    Lifecycle: user message saved + attempt(pending) -> streaming -> assistant
+    content saved + attempt(completed). Sibling branches never leak into context.
     """
+    if not session_belongs_to(body.session_id, user_id):
+        raise HTTPException(status_code=403, detail="Session not found")
+
+    # order_index = number of existing siblings under the same parent.
+    existing = (
+        db().table("nodes").select("parent_id").eq("session_id", body.session_id).execute().data
+    )
+    order_index = sum(1 for n in existing if n["parent_id"] == body.parent_id)
+
+    node = (
+        db()
+        .table("nodes")
+        .insert(
+            {
+                "session_id": body.session_id,
+                "parent_id": body.parent_id,
+                "is_fork": False,
+                "order_index": order_index,
+                "position_x": 0,
+                "position_y": 0,
+            }
+        )
+        .execute()
+        .data[0]
+    )
+    node_id = node["id"]
+
+    db().table("messages").insert(
+        {"node_id": node_id, "session_id": body.session_id, "role": "user", "content": body.message}
+    ).execute()
+
+    assistant = (
+        db()
+        .table("messages")
+        .insert(
+            {"node_id": node_id, "session_id": body.session_id, "role": "assistant", "content": ""}
+        )
+        .execute()
+        .data[0]
+    )
+
+    attempt = (
+        db()
+        .table("generation_attempts")
+        .insert(
+            {
+                "message_id": assistant["id"],
+                "node_id": node_id,
+                "model_id": body.model_id,
+                "status": "pending",
+            }
+        )
+        .execute()
+        .data[0]
+    )
+
+    # Build the branch context (root -> parent), append the new message, and
+    # trim it to the input-token budget (oldest pairs dropped, root preserved).
+    context = build_context(body.session_id, body.parent_id)
+    context.append({"role": "user", "content": body.message})
+    context = enforce_budget(context)
+    tokens_input = total_tokens(context)
 
     async def event_stream():
-        preview = (
-            f"(mock:{body.model_id}) Received your message "
-            f"— real providers are wired at Phase 3. You said: {body.message!r}"
-        )
-        for word in preview.split(" "):
-            await asyncio.sleep(0.06)
-            yield {"event": "token", "data": word + " "}
-        yield {"event": "done", "data": "[DONE]"}
+        # Tell the client which node was created so it can add it to the canvas.
+        yield {"event": "node", "data": json.dumps({"node_id": node_id, "parent_id": body.parent_id})}
+
+        db().table("generation_attempts").update({"status": "streaming"}).eq(
+            "id", attempt["id"]
+        ).execute()
+
+        full = ""
+        try:
+            async for chunk in stream_completion(body.model_id, context):
+                full += chunk
+                yield {"event": "token", "data": chunk}
+        except Exception as exc:
+            db().table("generation_attempts").update(
+                {"status": "failed", "error": str(exc), "completed_at": _now()}
+            ).eq("id", attempt["id"]).execute()
+            yield {"event": "error", "data": str(exc)}
+            return
+
+        db().table("messages").update({"content": full}).eq("id", assistant["id"]).execute()
+        db().table("generation_attempts").update(
+            {
+                "status": "completed",
+                "completed_at": _now(),
+                "tokens_input": tokens_input,
+                "tokens_output": approx_tokens(full),
+            }
+        ).eq("id", attempt["id"]).execute()
+
+        yield {"event": "done", "data": json.dumps({"node_id": node_id})}
 
     return EventSourceResponse(event_stream())
 
 
 @app.delete("/generate/{attempt_id}/cancel")
 async def cancel(attempt_id: str, user_id: str = Depends(verify_user)) -> dict:
-    """Cancel an in-progress generation.
-
-    Phase 2/3 marks the generation_attempt as `cancelled`, discards partial
-    content, and charges no credits.
-    """
+    """Mark an in-progress generation as cancelled."""
+    db().table("generation_attempts").update(
+        {"status": "cancelled", "completed_at": _now()}
+    ).eq("id", attempt_id).execute()
     return {"cancelled": True, "attempt_id": attempt_id}

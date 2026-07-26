@@ -18,10 +18,17 @@ class Settings:
     # Allowed browser origin for CORS (the Next.js web app).
     web_origin: str = os.environ.get("WEB_ORIGIN", "http://localhost:3000")
 
-    # AI provider keys — wired at Phase 3 (Multi-Model). Empty until then.
+    # AI provider keys. Any left blank fall back to mock streaming.
     openai_api_key: str = os.environ.get("OPENAI_API_KEY", "")
     anthropic_api_key: str = os.environ.get("ANTHROPIC_API_KEY", "")
     google_api_key: str = os.environ.get("GOOGLE_API_KEY", "")
+
+    # When true (default), always use the free mock streamer regardless of keys.
+    # Set USE_MOCK_AI=false in apps/ai/.env to call real providers.
+    use_mock_ai: bool = os.environ.get("USE_MOCK_AI", "true").lower() != "false"
+
+    # Max input tokens per request (approximate; enforced by truncating context).
+    max_input_tokens: int = int(os.environ.get("MAX_INPUT_TOKENS", "4096"))
 
 
 settings = Settings()

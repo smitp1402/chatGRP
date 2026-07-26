@@ -24,23 +24,33 @@ export function DevLoginButton() {
     setLoading(true)
     const supabase = createClient()
 
-    let { error } = await supabase.auth.signInWithPassword({
-      email: DEV_EMAIL,
-      password: DEV_PASSWORD,
-    })
+    let error: { message: string } | null = null
+    try {
+      const res = await supabase.auth.signInWithPassword({
+        email: DEV_EMAIL,
+        password: DEV_PASSWORD,
+      })
+      error = res.error
 
-    // First run: the test user doesn't exist yet — create it, then retry.
-    if (error) {
-      const signUp = await supabase.auth.signUp({ email: DEV_EMAIL, password: DEV_PASSWORD })
-      if (!signUp.error) {
-        const retry = await supabase.auth.signInWithPassword({
-          email: DEV_EMAIL,
-          password: DEV_PASSWORD,
-        })
-        error = retry.error
-      } else {
-        error = signUp.error
+      // First run: the test user doesn't exist yet — create it, then retry.
+      if (error) {
+        const signUp = await supabase.auth.signUp({ email: DEV_EMAIL, password: DEV_PASSWORD })
+        if (!signUp.error) {
+          const retry = await supabase.auth.signInWithPassword({
+            email: DEV_EMAIL,
+            password: DEV_PASSWORD,
+          })
+          error = retry.error
+        } else {
+          error = signUp.error
+        }
       }
+    } catch {
+      setLoading(false)
+      toast.error(
+        "Can't reach Supabase. Your project may be paused — open the Supabase dashboard and Restore it.",
+      )
+      return
     }
 
     setLoading(false)

@@ -105,7 +105,17 @@ function Canvas({ nodes, selectedId, onSelect, onMoveNode, onToggleStar }: FlowC
     >
       <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--color-border)" />
       <Controls showInteractive={false} />
-      <MiniMap nodeColor={minimapColor} pannable zoomable className="!bg-card" />
+      <MiniMap
+        position="bottom-right"
+        nodeColor={minimapColor}
+        nodeStrokeWidth={2}
+        maskColor="color-mix(in oklch, var(--color-canvas) 70%, transparent)"
+        bgColor="var(--color-card)"
+        pannable
+        zoomable
+        style={{ width: 160, height: 108 }}
+        className="!rounded-lg !border !border-border"
+      />
     </ReactFlow>
   )
 }

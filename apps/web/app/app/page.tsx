@@ -1,28 +1,34 @@
 'use client'
 
 import { useEffect } from 'react'
-import { Plus, Network } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Network } from 'lucide-react'
 import { AppSidebar } from '@/components/app-sidebar'
 import { FlowCanvas } from '@/components/canvas/flow-canvas'
 import { ChatPanel } from '@/components/chat-panel'
+import { createClient } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/stores/session-store'
 import { useCanvasStore } from '@/lib/stores/canvas-store'
-// Mock chat content — the chat panel is wired to real data in Phase 2.
-import { ACTIVE_BRANCH_IDS, GRAPH_NODES } from '@/lib/chatgrp-data'
-
-const isDev = process.env.NODE_ENV !== 'production'
 
 export default function AppPage() {
+  const router = useRouter()
   const activeId = useSessionStore((s) => s.activeId)
-  const { nodes, selectedId, loading, load, addNode, select, persistPosition, toggleStar, clear } =
+  const { nodes, selectedId, loading, load, select, persistPosition, toggleStar, clear } =
     useCanvasStore()
+
+  // Client-side auth guard — reads the session locally (no network call),
+  // so it's instant and can't hang. Replaces the removed Edge middleware.
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) router.replace('/login')
+    })
+  }, [router])
 
   useEffect(() => {
     if (activeId) void load(activeId)
     else clear()
   }, [activeId, load, clear])
-
-  const branch = ACTIVE_BRANCH_IDS.map((id) => GRAPH_NODES.find((n) => n.id === id)!).filter(Boolean)
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
@@ -46,26 +52,15 @@ export default function AppPage() {
 
             {nodes.length === 0 && !loading && (
               <CanvasMessage
-                title="No nodes yet"
-                body="Chat will create nodes in Phase 2. For now, add one to try the canvas."
+                title="Empty graph"
+                body="Send a message in the chat panel to create your first node."
               />
-            )}
-
-            {isDev && (
-              <button
-                type="button"
-                onClick={() => void addNode(activeId, selectedId)}
-                className="absolute right-4 top-4 z-10 flex items-center gap-1.5 rounded-lg border border-dashed border-primary/50 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary shadow-sm backdrop-blur transition-colors hover:bg-primary/10"
-              >
-                <Plus className="size-3.5" />
-                {selectedId ? 'Add child node' : 'Add root node'} (dev)
-              </button>
             )}
           </>
         )}
       </main>
 
-      <ChatPanel branch={branch} breadcrumb={['Distributed systems', 'Sharding', 'Consistency']} />
+      <ChatPanel />
     </div>
   )
 }
