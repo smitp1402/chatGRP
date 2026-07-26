@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronRight, Loader2, SendHorizontal } from 'lucide-react'
+import { ChevronRight, Download, GitFork, Loader2, SendHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 import { MODELS, modelById, type ModelId } from '@chatgrp/shared'
 import {
@@ -32,6 +32,7 @@ export function ChatPanel() {
   const [model, setModel] = useState<ModelId>('gpt-4o-mini')
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  const [forking, setForking] = useState(false)
   const [pendingQuestion, setPendingQuestion] = useState('')
   const [streamText, setStreamText] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -52,19 +53,24 @@ export function ChatPanel() {
       return
     }
 
+    // Both reply and fork branch off the selected node (parentId = selectedId).
+    // Fork just marks the new node as a fork so it renders as a dashed branch.
+    const parentId = selectedId
+
     setSending(true)
     setPendingQuestion(message)
     setStreamText('')
     setDraft('')
 
     await generateStream(
-      { sessionId: activeId, message, modelId: model, parentId: selectedId },
+      { sessionId: activeId, message, modelId: model, parentId, isFork: forking },
       {
         onToken: (chunk) => setStreamText((prev) => prev + chunk),
         onDone: async (nodeId) => {
           await loadNodes(activeId)
           selectNode(nodeId)
           setSending(false)
+          setForking(false)
           setPendingQuestion('')
           setStreamText('')
         },
@@ -76,6 +82,11 @@ export function ChatPanel() {
         },
       },
     )
+  }
+
+  function exportBranch() {
+    if (!selectedId) return
+    window.open(`/api/nodes/${selectedId}/export`, '_blank')
   }
 
   return (
@@ -155,7 +166,41 @@ export function ChatPanel() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {selectedId && (
+            <>
+              <button
+                type="button"
+                onClick={() => setForking((v) => !v)}
+                aria-pressed={forking}
+                title="Start a new sibling branch"
+                className={cn(
+                  'flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors',
+                  forking
+                    ? 'border-node-fork bg-node-fork/15 text-node-fork'
+                    : 'border-dashed border-node-fork/60 text-node-fork hover:bg-node-fork/10',
+                )}
+              >
+                <GitFork className="size-3.5" />
+                Fork
+              </button>
+              <button
+                type="button"
+                onClick={exportBranch}
+                title="Export this branch as markdown"
+                className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <Download className="size-3.5" />
+              </button>
+            </>
+          )}
         </div>
+
+        {forking && (
+          <p className="mb-2 rounded-md bg-node-fork/10 px-2 py-1 text-[11px] text-node-fork">
+            Forking — your next message starts a new sibling branch.
+          </p>
+        )}
 
         <div className="flex items-end gap-2 rounded-xl border border-input bg-card p-2 focus-within:border-ring focus-within:ring-1 focus-within:ring-ring">
           <textarea

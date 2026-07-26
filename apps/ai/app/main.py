@@ -36,6 +36,7 @@ class GenerateRequest(BaseModel):
     message: str
     model_id: str = "gpt-4o-mini"
     parent_id: str | None = None
+    is_fork: bool = False
 
 
 def _now() -> str:
@@ -70,7 +71,7 @@ async def generate(body: GenerateRequest, user_id: str = Depends(verify_user)):
             {
                 "session_id": body.session_id,
                 "parent_id": body.parent_id,
-                "is_fork": False,
+                "is_fork": body.is_fork,
                 "order_index": order_index,
                 "position_x": 0,
                 "position_y": 0,

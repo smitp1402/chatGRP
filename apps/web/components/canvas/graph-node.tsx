@@ -2,7 +2,7 @@
 
 import { memo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
-import { Star } from 'lucide-react'
+import { ChevronDown, ChevronRight, Star } from 'lucide-react'
 import { modelById, type ModelId } from '@chatgrp/shared'
 import { cn } from '@/lib/utils'
 
@@ -12,7 +12,10 @@ export interface GraphNodeData {
   credits: number
   isFork: boolean
   starred: boolean
+  collapsed: boolean
+  childCount: number
   onToggleStar: (id: string) => void
+  onToggleCollapse: (id: string) => void
   [key: string]: unknown
 }
 
@@ -87,6 +90,21 @@ function GraphNodeComponent({ id, data, selected }: NodeProps) {
           {d.credits} cr
         </span>
       </div>
+
+      {d.childCount > 0 && (
+        <button
+          type="button"
+          aria-label={d.collapsed ? 'Expand branch' : 'Collapse branch'}
+          onClick={(e) => {
+            e.stopPropagation()
+            d.onToggleCollapse(id)
+          }}
+          className="absolute -bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-0.5 rounded-full border border-border bg-card px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground shadow-sm hover:text-foreground"
+        >
+          {d.collapsed ? <ChevronRight className="size-3" /> : <ChevronDown className="size-3" />}
+          {d.childCount}
+        </button>
+      )}
 
       <Handle type="source" position={Position.Bottom} className="!size-1.5 !border-0 !bg-muted-foreground" />
     </div>

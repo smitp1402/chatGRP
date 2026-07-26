@@ -13,6 +13,7 @@ interface CanvasState {
   select: (id: string | null) => void
   persistPosition: (id: string, x: number, y: number) => Promise<void>
   toggleStar: (id: string) => Promise<void>
+  toggleCollapse: (id: string) => Promise<void>
   clear: () => void
 }
 
@@ -67,6 +68,20 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       await api.updateNode(id, { starred })
     } catch (err) {
       set({ error: err instanceof Error ? err.message : "Failed to update star" })
+    }
+  },
+
+  toggleCollapse: async (id) => {
+    const node = get().nodes.find((n) => n.id === id)
+    if (!node) return
+    const collapsed = !node.collapsed
+    set((state) => ({
+      nodes: state.nodes.map((n) => (n.id === id ? { ...n, collapsed } : n)),
+    }))
+    try {
+      await api.updateNode(id, { collapsed })
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : "Failed to update collapse" })
     }
   },
 

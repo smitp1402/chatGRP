@@ -24,3 +24,34 @@ export function truncate(text: string, max = 24): string {
 export function breadcrumbFor(nodes: CanvasNode[], nodeId: string | null): string[] {
   return pathToRoot(nodes, nodeId).map((n) => truncate(n.question))
 }
+
+export function childCount(nodes: CanvasNode[], id: string): number {
+  return nodes.filter((n) => n.parentId === id).length
+}
+
+/** Ids of nodes hidden because an ancestor is collapsed. */
+export function hiddenNodeIds(nodes: CanvasNode[]): Set<string> {
+  const childrenOf = new Map<string, string[]>()
+  for (const n of nodes) {
+    if (n.parentId) {
+      const arr = childrenOf.get(n.parentId) ?? []
+      arr.push(n.id)
+      childrenOf.set(n.parentId, arr)
+    }
+  }
+
+  const hidden = new Set<string>()
+  const hideSubtree = (id: string) => {
+    for (const child of childrenOf.get(id) ?? []) {
+      if (!hidden.has(child)) {
+        hidden.add(child)
+        hideSubtree(child)
+      }
+    }
+  }
+
+  for (const n of nodes) {
+    if (n.collapsed) hideSubtree(n.id)
+  }
+  return hidden
+}

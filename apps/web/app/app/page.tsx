@@ -13,7 +13,7 @@ import { useCanvasStore } from '@/lib/stores/canvas-store'
 export default function AppPage() {
   const router = useRouter()
   const activeId = useSessionStore((s) => s.activeId)
-  const { nodes, selectedId, loading, load, select, persistPosition, toggleStar, clear } =
+  const { nodes, selectedId, loading, load, select, persistPosition, toggleStar, toggleCollapse, clear } =
     useCanvasStore()
 
   // Client-side auth guard — reads the session locally (no network call),
@@ -48,6 +48,7 @@ export default function AppPage() {
               onSelect={select}
               onMoveNode={persistPosition}
               onToggleStar={toggleStar}
+              onToggleCollapse={toggleCollapse}
             />
 
             {nodes.length === 0 && !loading && (

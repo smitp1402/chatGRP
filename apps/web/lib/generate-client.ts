@@ -8,6 +8,7 @@ export interface GenerateInput {
   message: string
   modelId: ModelId
   parentId: string | null
+  isFork?: boolean
 }
 
 export interface GenerateCallbacks {
@@ -42,6 +43,7 @@ export async function generateStream(
         message: input.message,
         model_id: input.modelId,
         parent_id: input.parentId,
+        is_fork: input.isFork ?? false,
       }),
     })
   } catch {
