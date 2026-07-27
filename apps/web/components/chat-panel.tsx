@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronRight, Download, GitFork, Loader2, SendHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
-import { MODELS, modelById, type ModelId } from '@chatgrp/shared'
+import { modelById, modelsForPlan, type ModelId } from '@chatgrp/shared'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +13,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useSessionStore } from '@/lib/stores/session-store'
 import { useCanvasStore } from '@/lib/stores/canvas-store'
+import { useMeStore } from '@/lib/stores/me-store'
 import { pathToRoot, breadcrumbFor } from '@/lib/graph-utils'
 import { generateStream } from '@/lib/generate-client'
 
@@ -28,7 +29,10 @@ export function ChatPanel() {
   const selectedId = useCanvasStore((s) => s.selectedId)
   const loadNodes = useCanvasStore((s) => s.load)
   const selectNode = useCanvasStore((s) => s.select)
+  const plan = useMeStore((s) => s.plan)
+  const loadMe = useMeStore((s) => s.load)
 
+  const availableModels = modelsForPlan(plan)
   const [model, setModel] = useState<ModelId>('gpt-4o-mini')
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
@@ -44,6 +48,13 @@ export function ChatPanel() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [branch.length, streamText, sending])
+
+  // If the current model isn't available on the user's plan, fall back.
+  useEffect(() => {
+    if (availableModels.length > 0 && !availableModels.some((m) => m.id === model)) {
+      setModel(availableModels[0].id)
+    }
+  }, [availableModels, model])
 
   async function handleSend() {
     const message = draft.trim()
@@ -68,6 +79,7 @@ export function ChatPanel() {
         onToken: (chunk) => setStreamText((prev) => prev + chunk),
         onDone: async (nodeId) => {
           await loadNodes(activeId)
+          void loadMe()
           selectNode(nodeId)
           setSending(false)
           setForking(false)
@@ -154,7 +166,7 @@ export function ChatPanel() {
               </span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-52">
-              {MODELS.map((m) => (
+              {availableModels.map((m) => (
                 <DropdownMenuItem key={m.id} onClick={() => setModel(m.id)}>
                   <span
                     className="inline-block size-1.5 rounded-full"

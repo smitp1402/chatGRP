@@ -24,8 +24,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
-import { CREDITS } from '@/lib/chatgrp-data'
 import { useSessionStore } from '@/lib/stores/session-store'
+import { useMeStore } from '@/lib/stores/me-store'
 import { relativeTime, sessionGroup, type SessionGroupLabel } from '@/lib/time'
 
 const GROUP_ORDER: SessionGroupLabel[] = ['Today', 'Yesterday', 'Last 7 days', 'Older']
@@ -33,13 +33,15 @@ const GROUP_ORDER: SessionGroupLabel[] = ['Today', 'Yesterday', 'Last 7 days', '
 export function AppSidebar() {
   const { sessions, activeId, loading, error, load, create, rename, remove, setActive } =
     useSessionStore()
+  const { plan, creditsUsed, creditsCap, load: loadMe } = useMeStore()
   const [query, setQuery] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     void load()
-  }, [load])
+    void loadMe()
+  }, [load, loadMe])
 
   useEffect(() => {
     if (error) toast.error(error)
@@ -93,7 +95,8 @@ export function AppSidebar() {
     }
   }
 
-  const pct = Math.round((CREDITS.used / CREDITS.total) * 100)
+  const pct = creditsCap > 0 ? Math.round((creditsUsed / creditsCap) * 100) : 0
+  const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1)
 
   return (
     <aside className="flex h-full w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
@@ -159,7 +162,7 @@ export function AppSidebar() {
           <div className="mb-1.5 flex items-center justify-between text-xs">
             <span className="font-medium text-foreground">Credits</span>
             <span className="font-mono text-muted-foreground tabular-nums">
-              {CREDITS.used.toLocaleString()}/{(CREDITS.total / 1000).toFixed(0)}k
+              {creditsUsed.toLocaleString()}/{creditsCap.toLocaleString()}
             </span>
           </div>
           <Progress value={pct} className="h-1.5" />
@@ -176,7 +179,7 @@ export function AppSidebar() {
             <p className="truncate text-xs font-medium text-foreground">Your account</p>
             <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-px font-mono text-[10px] font-medium text-primary">
               <Sparkles className="size-2.5" />
-              Pro
+              {planLabel}
             </span>
           </div>
           <Link

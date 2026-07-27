@@ -52,7 +52,15 @@ export async function generateStream(
   }
 
   if (!res.ok || !res.body) {
-    cb.onError?.(`Generation failed (${res.status})`)
+    // FastAPI errors return { detail: "..." } — surface it (quota/plan messages).
+    let detail = `Generation failed (${res.status})`
+    try {
+      const body = await res.json()
+      if (body?.detail) detail = body.detail
+    } catch {
+      // non-JSON body; keep the status message
+    }
+    cb.onError?.(detail)
     return
   }
 

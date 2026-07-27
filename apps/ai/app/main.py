@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from .auth import verify_user
+from .billing import assert_can_generate, record_usage
 from .budget import approx_tokens, enforce_budget, total_tokens
 from .config import settings
 from .context import build_context
@@ -57,6 +58,9 @@ async def generate(body: GenerateRequest, user_id: str = Depends(verify_user)):
     """
     if not session_belongs_to(body.session_id, user_id):
         raise HTTPException(status_code=403, detail="Session not found")
+
+    # Plan gating + credit check (raises 402/403 before any work is done).
+    assert_can_generate(user_id, body.model_id)
 
     # order_index = number of existing siblings under the same parent.
     existing = (
@@ -147,6 +151,9 @@ async def generate(body: GenerateRequest, user_id: str = Depends(verify_user)):
                 "tokens_output": approx_tokens(full),
             }
         ).eq("id", attempt["id"]).execute()
+
+        # Deduct credits only after a successful completion.
+        record_usage(user_id, attempt["id"], body.model_id)
 
         yield {"event": "done", "data": json.dumps({"node_id": node_id})}
 

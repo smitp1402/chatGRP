@@ -20,3 +20,10 @@ export type ModelId = keyof typeof CREDIT_TABLE
 export function creditsFor(modelId: ModelId): number {
   return CREDIT_TABLE[modelId]
 }
+
+/** Monthly credit allowance per subscription tier. */
+export const PLAN_CREDITS = {
+  free: 100,
+  pro: 2000,
+  team: 10000,
+} as const
