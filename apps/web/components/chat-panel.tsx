@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronRight, Download, GitFork, Loader2, SendHorizontal } from 'lucide-react'
+import { BookmarkPlus, ChevronRight, Download, GitFork, Loader2, SendHorizontal, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { modelById, modelsForPlan, type ModelId } from '@chatgrp/shared'
+import { PromptLibrary } from '@/components/prompts/prompt-library'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,6 +40,8 @@ export function ChatPanel() {
   const [forking, setForking] = useState(false)
   const [pendingQuestion, setPendingQuestion] = useState('')
   const [streamText, setStreamText] = useState('')
+  const [libraryOpen, setLibraryOpen] = useState(false)
+  const [saveDraft, setSaveDraft] = useState<string | undefined>(undefined)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const branch = pathToRoot(nodes, selectedId)
@@ -101,6 +104,23 @@ export function ChatPanel() {
     window.open(`/api/nodes/${selectedId}/export`, '_blank')
   }
 
+  function insertPrompt(text: string, defaultModelId: ModelId | null) {
+    setDraft(text)
+    if (defaultModelId && availableModels.some((m) => m.id === defaultModelId)) {
+      setModel(defaultModelId)
+    }
+  }
+
+  function openLibrary() {
+    setSaveDraft(undefined)
+    setLibraryOpen(true)
+  }
+
+  function saveDraftAsPrompt() {
+    setSaveDraft(draft.trim())
+    setLibraryOpen(true)
+  }
+
   return (
     <div className="flex h-full w-[292px] shrink-0 flex-col border-l border-border bg-background">
       {/* Breadcrumb */}
@@ -153,7 +173,7 @@ export function ChatPanel() {
 
       {/* Composer */}
       <div className="border-t border-border p-3">
-        <div className="mb-2 flex items-center gap-1.5">
+        <div className="mb-2 flex flex-wrap items-center gap-1.5">
           <DropdownMenu>
             <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground transition-colors hover:bg-accent">
               <span
@@ -178,6 +198,26 @@ export function ChatPanel() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <button
+            type="button"
+            onClick={openLibrary}
+            title="Prompt library"
+            className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <Sparkles className="size-3.5" />
+            Prompts
+          </button>
+          {draft.trim() && (
+            <button
+              type="button"
+              onClick={saveDraftAsPrompt}
+              title="Save this as a prompt"
+              className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <BookmarkPlus className="size-3.5" />
+            </button>
+          )}
 
           {selectedId && (
             <>
@@ -243,6 +283,13 @@ export function ChatPanel() {
           </button>
         </div>
       </div>
+
+      <PromptLibrary
+        open={libraryOpen}
+        onOpenChange={setLibraryOpen}
+        onInsert={insertPrompt}
+        initialDraft={saveDraft}
+      />
     </div>
   )
 }
