@@ -19,6 +19,7 @@ from .budget import approx_tokens, enforce_budget, total_tokens
 from .config import settings
 from .context import build_context
 from .db import db, session_belongs_to
+from .ratelimit import check_rate_limit
 from .router import stream_completion
 
 app = FastAPI(title="ChatGRP AI Layer", version="0.2.0")
@@ -56,6 +57,8 @@ async def generate(body: GenerateRequest, user_id: str = Depends(verify_user)):
     Lifecycle: user message saved + attempt(pending) -> streaming -> assistant
     content saved + attempt(completed). Sibling branches never leak into context.
     """
+    check_rate_limit(user_id)
+
     if not session_belongs_to(body.session_id, user_id):
         raise HTTPException(status_code=403, detail="Session not found")
 

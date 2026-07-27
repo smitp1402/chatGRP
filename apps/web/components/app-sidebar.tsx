@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
+import { ThemeCycle } from '@/components/theme-cycle'
 import { useSessionStore } from '@/lib/stores/session-store'
 import { useMeStore } from '@/lib/stores/me-store'
 import { relativeTime, sessionGroup, type SessionGroupLabel } from '@/lib/time'
@@ -182,6 +183,7 @@ export function AppSidebar() {
               {planLabel}
             </span>
           </div>
+          <ThemeCycle />
           <Link
             href="/app/settings"
             aria-label="Settings"
