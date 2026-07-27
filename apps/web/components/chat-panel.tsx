@@ -122,7 +122,7 @@ export function ChatPanel() {
   }
 
   return (
-    <div className="flex h-full w-[292px] shrink-0 flex-col border-l border-border bg-background">
+    <div className="flex h-full w-full min-w-0 flex-col border-l border-border bg-background">
       {/* Breadcrumb */}
       <div className="flex h-14 items-center gap-1 overflow-x-auto border-b border-border px-4">
         {crumbs.length === 0 ? (

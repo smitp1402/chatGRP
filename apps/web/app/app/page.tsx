@@ -6,18 +6,21 @@ import { Network } from 'lucide-react'
 import { AppSidebar } from '@/components/app-sidebar'
 import { FlowCanvas } from '@/components/canvas/flow-canvas'
 import { ChatPanel } from '@/components/chat-panel'
+import { LayoutSwitcher } from '@/components/layout/layout-switcher'
+import { ResizableSplit } from '@/components/layout/resizable-split'
 import { createClient } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/stores/session-store'
 import { useCanvasStore } from '@/lib/stores/canvas-store'
+import { LAYOUT_PRESETS, useLayoutStore } from '@/lib/stores/layout-store'
 
 export default function AppPage() {
   const router = useRouter()
   const activeId = useSessionStore((s) => s.activeId)
+  const preset = useLayoutStore((s) => s.preset)
+  const cfg = LAYOUT_PRESETS[preset]
   const { nodes, selectedId, loading, load, select, persistPosition, toggleStar, toggleCollapse, clear } =
     useCanvasStore()
 
-  // Client-side auth guard — reads the session locally (no network call),
-  // so it's instant and can't hang. Replaces the removed Edge middleware.
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getSession().then(({ data }) => {
@@ -30,38 +33,53 @@ export default function AppPage() {
     else clear()
   }, [activeId, load, clear])
 
+  const canvasArea = (
+    <div className="relative h-full">
+      <FlowCanvas
+        nodes={nodes}
+        selectedId={selectedId}
+        onSelect={select}
+        onMoveNode={persistPosition}
+        onToggleStar={toggleStar}
+        onToggleCollapse={toggleCollapse}
+      />
+      {nodes.length === 0 && !loading && (
+        <CanvasMessage
+          title="Empty graph"
+          body="Send a message in the chat panel to create your first node."
+        />
+      )}
+    </div>
+  )
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
-      <AppSidebar />
+      {cfg.sidebar && <AppSidebar />}
 
-      <main className="relative flex-1">
+      <div className="relative flex-1">
+        <div className="absolute right-4 top-3 z-30">
+          <LayoutSwitcher />
+        </div>
+
         {!activeId ? (
           <CanvasMessage
             title="No session selected"
             body="Create or pick a session in the sidebar to open its graph."
           />
+        ) : cfg.chat ? (
+          <ResizableSplit
+            key={preset}
+            storageKey={`chatgrp-ws-${preset}`}
+            initial={cfg.canvasSize}
+            min={30}
+            max={80}
+            left={canvasArea}
+            right={<ChatPanel />}
+          />
         ) : (
-          <>
-            <FlowCanvas
-              nodes={nodes}
-              selectedId={selectedId}
-              onSelect={select}
-              onMoveNode={persistPosition}
-              onToggleStar={toggleStar}
-              onToggleCollapse={toggleCollapse}
-            />
-
-            {nodes.length === 0 && !loading && (
-              <CanvasMessage
-                title="Empty graph"
-                body="Send a message in the chat panel to create your first node."
-              />
-            )}
-          </>
+          canvasArea
         )}
-      </main>
-
-      <ChatPanel />
+      </div>
     </div>
   )
 }
