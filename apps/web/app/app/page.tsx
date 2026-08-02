@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { Network } from 'lucide-react'
 import { AppSidebar } from '@/components/app-sidebar'
 import { FlowCanvas } from '@/components/canvas/flow-canvas'
@@ -11,14 +12,19 @@ import { ResizableSplit } from '@/components/layout/resizable-split'
 import { createClient } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/stores/session-store'
 import { useCanvasStore } from '@/lib/stores/canvas-store'
+import { useMeStore } from '@/lib/stores/me-store'
 import { LAYOUT_PRESETS, useLayoutStore } from '@/lib/stores/layout-store'
 
 export default function AppPage() {
   const router = useRouter()
   const activeId = useSessionStore((s) => s.activeId)
+  const loadSessions = useSessionStore((s) => s.load)
+  const loadMe = useMeStore((s) => s.load)
+  const meLoaded = useMeStore((s) => s.loaded)
+  const onboarded = useMeStore((s) => s.onboarded)
   const preset = useLayoutStore((s) => s.preset)
   const cfg = LAYOUT_PRESETS[preset]
-  const { nodes, selectedId, loading, load, select, persistPosition, toggleStar, toggleCollapse, clear } =
+  const { nodes, selectedId, loading, error, load, select, persistPosition, toggleStar, toggleCollapse, removeNode, clear } =
     useCanvasStore()
 
   useEffect(() => {
@@ -27,6 +33,21 @@ export default function AppPage() {
       if (!data.session) router.replace('/login')
     })
   }, [router])
+
+  useEffect(() => {
+    if (error) toast.error(`Canvas load failed: ${error}`)
+  }, [error])
+
+  // Load sessions + plan regardless of whether the sidebar is visible.
+  useEffect(() => {
+    void loadSessions()
+    void loadMe()
+  }, [loadSessions, loadMe])
+
+  // First-time users go through onboarding once (gated on loaded, so no flash).
+  useEffect(() => {
+    if (meLoaded && !onboarded) router.replace('/onboarding')
+  }, [meLoaded, onboarded, router])
 
   useEffect(() => {
     if (activeId) void load(activeId)
@@ -42,6 +63,7 @@ export default function AppPage() {
         onMoveNode={persistPosition}
         onToggleStar={toggleStar}
         onToggleCollapse={toggleCollapse}
+        onDeleteNode={removeNode}
       />
       {nodes.length === 0 && !loading && (
         <CanvasMessage

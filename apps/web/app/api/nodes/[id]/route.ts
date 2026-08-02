@@ -36,3 +36,18 @@ export async function PATCH(request: Request, { params }: Params) {
 
   return ok({ id: data.id })
 }
+
+/** DELETE /api/nodes/:id — delete a node and its whole subtree (FK cascade). */
+export async function DELETE(_request: Request, { params }: Params) {
+  const { id } = await params
+  const supabase = await createClient()
+  const userId = await getUserId(supabase)
+  if (!userId) return fail("Unauthorized", 401)
+
+  // parent_id is ON DELETE CASCADE, so descendants + their messages +
+  // generation_attempts are removed automatically. RLS scopes to the user.
+  const { error } = await supabase.from("nodes").delete().eq("id", id)
+  if (error) return fail(error.message, 500)
+
+  return ok({ id })
+}

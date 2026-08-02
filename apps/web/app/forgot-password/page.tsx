@@ -3,20 +3,63 @@
 import { useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, CheckCircle2, Loader2, Mail } from "lucide-react"
+import { toast } from "sonner"
 import { AuthShell } from "@/components/auth-shell"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { createClient } from "@/lib/supabase/client"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
   const [status, setStatus] = useState<"idle" | "loading" | "sent">("idle")
+  const [resending, setResending] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
+  /**
+   * Sends the recovery email. The link lands on /auth/callback, which exchanges
+   * the code for a recovery session before forwarding to /reset-password.
+   *
+   * Returns false only for failures worth telling the user about — a missing
+   * account is never one of them (see handleSubmit).
+   */
+  async function sendResetLink(): Promise<boolean> {
+    const supabase = createClient()
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+    })
+
+    if (error?.status === 429) {
+      toast.error("Too many attempts. Wait a minute before requesting another link.")
+      return false
+    }
+
+    if (error) {
+      // Anything else is an infrastructure problem, not a hint about the account.
+      toast.error("Couldn't send the reset link. Try again in a moment.")
+      return false
+    }
+
+    return true
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!email) return
+    if (!email || status === "loading") return
     setStatus("loading")
-    setTimeout(() => setStatus("sent"), 900)
+
+    const sent = await sendResetLink()
+
+    // Show the confirmation screen even when the address isn't registered:
+    // differing responses would let anyone enumerate our user list.
+    setStatus(sent ? "sent" : "idle")
+  }
+
+  async function handleResend() {
+    if (resending) return
+    setResending(true)
+    const sent = await sendResetLink()
+    setResending(false)
+    if (sent) toast.success("Reset link sent again.")
   }
 
   return (
@@ -28,18 +71,19 @@ export default function ForgotPasswordPage() {
           </div>
           <h1 className="text-xl font-semibold tracking-tight">Check your email</h1>
           <p className="mt-2 text-pretty leading-relaxed text-muted-foreground">
-            We sent a reset link to{" "}
-            <span className="font-medium text-foreground">{email}</span>. It may take a
-            minute to arrive.
+            If an account exists for{" "}
+            <span className="font-medium text-foreground">{email}</span>, we&apos;ve sent
+            a reset link. It may take a minute to arrive.
           </p>
           <p className="mt-6 text-sm text-muted-foreground">
             Didn&apos;t get it?{" "}
             <button
               type="button"
-              onClick={() => setStatus("idle")}
-              className="font-medium text-primary hover:underline"
+              onClick={() => void handleResend()}
+              disabled={resending}
+              className="font-medium text-primary hover:underline disabled:opacity-60"
             >
-              Resend link
+              {resending ? "Sending..." : "Resend link"}
             </button>
           </p>
           <BackToLogin />
@@ -93,7 +137,7 @@ function BackToLogin() {
   return (
     <div className="mt-6 border-t border-border pt-5 text-center">
       <Link
-        href="/"
+        href="/login"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="size-3.5" />

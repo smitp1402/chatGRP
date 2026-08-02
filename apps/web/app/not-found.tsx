@@ -52,7 +52,7 @@ export default function NotFound() {
 
           <div className="mt-8 flex items-center gap-3">
             <Button render={<Link href="/app" />}>Back to workspace</Button>
-            <Button variant="outline" render={<Link href="/onboarding" />}>
+            <Button variant="outline" render={<Link href="/signup" />}>
               Start over
             </Button>
           </div>

@@ -28,7 +28,7 @@ export function MarketingNav() {
           <Button variant="ghost" size="sm" render={<Link href="/app" />} className="hidden sm:inline-flex">
             Open app
           </Button>
-          <Button size="sm" render={<Link href="/onboarding" />}>
+          <Button size="sm" render={<Link href="/signup" />}>
             Start for free
           </Button>
         </div>

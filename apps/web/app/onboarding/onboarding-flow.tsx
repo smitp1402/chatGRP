@@ -1,66 +1,86 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { ArrowRight, ArrowLeft, Check, GitBranch, MessageSquareText, Share2 } from "lucide-react"
+import { ArrowRight, ArrowLeft, Check, GitBranch, Loader2, MessageSquareText, Share2 } from "lucide-react"
+import { toast } from "sonner"
+import { MODELS, type ModelId } from "@chatgrp/shared"
 import { Logo } from "@/components/logo"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
+import { createClient } from "@/lib/supabase/client"
+import { useMeStore } from "@/lib/stores/me-store"
 
 const ROLES = ["Engineer", "Researcher", "Product", "Founder", "Student", "Other"]
 
 const USE_CASES = [
-  {
-    id: "brainstorm",
-    icon: GitBranch,
-    title: "Branching brainstorms",
-    desc: "Explore multiple directions from a single prompt without losing context.",
-  },
-  {
-    id: "research",
-    icon: MessageSquareText,
-    title: "Deep research",
-    desc: "Compare model answers side by side and keep every thread organized.",
-  },
-  {
-    id: "collab",
-    icon: Share2,
-    title: "Team collaboration",
-    desc: "Share conversation graphs with teammates as living documents.",
-  },
+  { id: "brainstorm", icon: GitBranch, title: "Branching brainstorms", desc: "Explore multiple directions from a single prompt without losing context." },
+  { id: "research", icon: MessageSquareText, title: "Deep research", desc: "Compare model answers side by side and keep every thread organized." },
+  { id: "collab", icon: Share2, title: "Team collaboration", desc: "Share conversation graphs with teammates as living documents." },
 ]
 
-const MODELS = [
-  { id: "gpt-4o", name: "GPT-4o", vendor: "OpenAI", dot: "var(--node-ai)" },
-  { id: "claude-3.7", name: "Claude 3.7 Sonnet", vendor: "Anthropic", dot: "var(--node-user)" },
-  { id: "gemini-2.0", name: "Gemini 2.0 Flash", vendor: "Google", dot: "var(--node-fork)" },
-]
+const PROVIDER_DOT: Record<string, string> = {
+  openai: "var(--chart-5)",
+  anthropic: "var(--chart-3)",
+  google: "var(--chart-4)",
+}
 
 const STEPS = ["Welcome", "About you", "Use case", "Default model"]
 
 export function OnboardingFlow() {
   const router = useRouter()
+  const { loaded, onboarded, load: loadMe } = useMeStore()
   const [step, setStep] = useState(0)
   const [name, setName] = useState("")
   const [role, setRole] = useState("")
   const [useCase, setUseCase] = useState("")
-  const [model, setModel] = useState("gpt-4o")
+  const [model, setModel] = useState<ModelId>("gpt-4o-mini")
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    void loadMe()
+  }, [loadMe])
+
+  // Returning users who already onboarded shouldn't see this again.
+  useEffect(() => {
+    if (loaded && onboarded) router.replace("/app")
+  }, [loaded, onboarded, router])
 
   const isLast = step === STEPS.length - 1
-
   const canAdvance =
     step === 0 ||
     (step === 1 && name.trim().length > 0 && role.length > 0) ||
     (step === 2 && useCase.length > 0) ||
     step === 3
 
+  async function finish() {
+    setSaving(true)
+    try {
+      const supabase = createClient()
+      if (name.trim()) {
+        await supabase.auth.updateUser({ data: { full_name: name.trim() } })
+      }
+      const res = await fetch("/api/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ defaultModelId: model }),
+      })
+      if (!res.ok) throw new Error("Could not save onboarding")
+      await loadMe()
+      router.push("/app")
+    } catch (err) {
+      setSaving(false)
+      toast.error(err instanceof Error ? err.message : "Something went wrong")
+    }
+  }
+
   function next() {
     if (isLast) {
-      router.push("/app")
+      void finish()
       return
     }
     setStep((s) => Math.min(s + 1, STEPS.length - 1))
@@ -76,25 +96,21 @@ export function OnboardingFlow() {
         <Link href="/" aria-label="ChatGRP home">
           <Logo />
         </Link>
-        <Link
-          href="/app"
-          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+        <button
+          type="button"
+          onClick={() => void finish()}
+          disabled={saving}
+          className="text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
         >
           Skip for now
-        </Link>
+        </button>
       </header>
 
-      {/* Progress */}
       <div className="mx-auto w-full max-w-xl px-6 pt-8">
         <div className="flex items-center gap-2">
           {STEPS.map((label, i) => (
             <div key={label} className="flex flex-1 flex-col gap-2">
-              <div
-                className={cn(
-                  "h-1 rounded-full transition-colors",
-                  i <= step ? "bg-primary" : "bg-muted",
-                )}
-              />
+              <div className={cn("h-1 rounded-full transition-colors", i <= step ? "bg-primary" : "bg-muted")} />
               <span
                 className={cn(
                   "font-mono text-[10px] uppercase tracking-wide transition-colors",
@@ -125,8 +141,8 @@ export function OnboardingFlow() {
                     Chat in graphs, not threads
                   </h1>
                   <p className="text-pretty leading-relaxed text-muted-foreground">
-                    ChatGRP turns every conversation into a visual graph. Fork any message,
-                    branch into new ideas, and compare model responses — all on one canvas.
+                    ChatGRP turns every conversation into a visual graph. Fork any message, branch
+                    into new ideas, and compare model responses — all on one canvas.
                   </p>
                 </div>
                 <ul className="flex flex-col gap-3">
@@ -155,13 +171,7 @@ export function OnboardingFlow() {
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="name">What should we call you?</Label>
-                  <Input
-                    id="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Ada Lovelace"
-                    autoFocus
-                  />
+                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ada Lovelace" autoFocus />
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label>What best describes your role?</Label>
@@ -189,9 +199,7 @@ export function OnboardingFlow() {
             {step === 2 && (
               <div className="flex flex-col gap-6">
                 <div className="flex flex-col gap-2">
-                  <h1 className="text-2xl font-semibold tracking-tight">
-                    What will you use ChatGRP for?
-                  </h1>
+                  <h1 className="text-2xl font-semibold tracking-tight">What will you use ChatGRP for?</h1>
                   <p className="leading-relaxed text-muted-foreground">
                     Pick the one that fits best. You can do all of these later.
                   </p>
@@ -204,9 +212,7 @@ export function OnboardingFlow() {
                       onClick={() => setUseCase(u.id)}
                       className={cn(
                         "flex items-start gap-3 rounded-lg border p-4 text-left transition-colors",
-                        useCase === u.id
-                          ? "border-primary bg-primary/5"
-                          : "border-border bg-card hover:border-muted-foreground/40",
+                        useCase === u.id ? "border-primary bg-primary/5" : "border-border bg-card hover:border-muted-foreground/40",
                       )}
                     >
                       <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background">
@@ -239,18 +245,13 @@ export function OnboardingFlow() {
                       onClick={() => setModel(m.id)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg border p-4 text-left transition-colors",
-                        model === m.id
-                          ? "border-primary bg-primary/5"
-                          : "border-border bg-card hover:border-muted-foreground/40",
+                        model === m.id ? "border-primary bg-primary/5" : "border-border bg-card hover:border-muted-foreground/40",
                       )}
                     >
-                      <span
-                        className="size-2.5 rounded-full"
-                        style={{ backgroundColor: m.dot }}
-                      />
+                      <span className="size-2.5 rounded-full" style={{ backgroundColor: PROVIDER_DOT[m.provider] }} />
                       <div className="flex-1">
                         <p className="text-sm font-medium">{m.name}</p>
-                        <p className="text-xs text-muted-foreground">{m.vendor}</p>
+                        <p className="text-xs text-muted-foreground">{m.credits} credits/msg</p>
                       </div>
                       {model === m.id && <Check className="size-4 shrink-0 text-primary" />}
                     </button>
@@ -262,17 +263,14 @@ export function OnboardingFlow() {
         </AnimatePresence>
 
         <div className="mt-8 flex items-center justify-between">
-          <Button
-            variant="ghost"
-            onClick={back}
-            className={cn(step === 0 && "invisible")}
-          >
+          <Button variant="ghost" onClick={back} className={cn(step === 0 && "invisible")}>
             <ArrowLeft className="size-4" />
             Back
           </Button>
-          <Button onClick={next} disabled={!canAdvance}>
+          <Button onClick={next} disabled={!canAdvance || saving}>
+            {saving ? <Loader2 className="size-4 animate-spin" /> : null}
             {isLast ? "Enter ChatGRP" : "Continue"}
-            <ArrowRight className="size-4" />
+            {!saving && <ArrowRight className="size-4" />}
           </Button>
         </div>
       </main>

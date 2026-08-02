@@ -1,13 +1,10 @@
 'use client'
 
-import { useState } from 'react'
-import {
-  Bell,
-  Lock,
-  Palette,
-  ShieldAlert,
-  User,
-} from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Bell, Loader2, Lock, LogOut, Palette, User } from 'lucide-react'
+import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
 import { PageHeader } from '@/components/page-header'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -28,14 +25,13 @@ import {
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
-type SectionId = 'profile' | 'appearance' | 'notifications' | 'privacy' | 'danger'
+type SectionId = 'profile' | 'appearance' | 'notifications' | 'privacy'
 
 const NAV: { id: SectionId; label: string; icon: React.ElementType }[] = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'privacy', label: 'Privacy', icon: Lock },
-  { id: 'danger', label: 'Danger Zone', icon: ShieldAlert },
 ]
 
 export default function SettingsPage() {
@@ -55,9 +51,7 @@ export default function SettingsPage() {
               className={cn(
                 'flex items-center gap-2.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 section === id
-                  ? id === 'danger'
-                    ? 'bg-destructive/10 text-destructive'
-                    : 'bg-accent text-foreground'
+                  ? 'bg-accent text-foreground'
                   : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
               )}
             >
@@ -73,7 +67,6 @@ export default function SettingsPage() {
           {section === 'appearance' && <AppearanceSection />}
           {section === 'notifications' && <NotificationsSection />}
           {section === 'privacy' && <PrivacySection />}
-          {section === 'danger' && <DangerSection />}
         </div>
       </div>
     </div>
@@ -125,46 +118,139 @@ function Row({
 }
 
 function ProfileSection() {
+  const router = useRouter()
+  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const [confirmText, setConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+
+  useEffect(() => {
+    createClient()
+      .auth.getSession()
+      .then(({ data }) => {
+        setEmail(data.session?.user?.email ?? '')
+        setName((data.session?.user?.user_metadata?.full_name as string) ?? '')
+      })
+  }, [])
+
+  async function saveName() {
+    setSaving(true)
+    const { error } = await createClient().auth.updateUser({ data: { full_name: name.trim() } })
+    setSaving(false)
+    if (error) toast.error(error.message)
+    else toast.success('Profile updated')
+  }
+
+  async function signOut() {
+    setSigningOut(true)
+    await createClient().auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }
+
+  async function deleteAccount() {
+    setDeleting(true)
+    try {
+      const res = await fetch('/api/account/delete', { method: 'POST' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.error ?? 'Failed to delete account')
+      }
+      await createClient().auth.signOut()
+      router.push('/')
+    } catch (err) {
+      setDeleting(false)
+      toast.error(err instanceof Error ? err.message : 'Could not delete account')
+    }
+  }
+
   return (
-    <SectionShell title="Profile" description="Manage how you appear across ChatGRP.">
-      <Panel>
+    <SectionShell title="Profile" description="Manage your account.">
+      <Panel className="flex flex-col gap-4">
         <div className="flex items-center gap-4">
-          <Avatar className="size-16">
-            <AvatarImage src="/user-avatar.png" alt="Avery Chen" />
-            <AvatarFallback className="bg-node-user text-node-user-foreground">AC</AvatarFallback>
+          <Avatar className="size-14">
+            <AvatarImage src="/user-avatar.png" alt="Account" />
+            <AvatarFallback className="bg-node-user text-node-user-foreground">
+              {(name?.[0] ?? email?.[0] ?? 'U').toUpperCase()}
+            </AvatarFallback>
           </Avatar>
-          <div>
-            <Button variant="outline" size="sm">
-              Upload new photo
-            </Button>
-            <p className="mt-1.5 text-xs text-muted-foreground">JPG or PNG, up to 2MB.</p>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-foreground">{name || email || 'Your account'}</p>
+            <p className="truncate text-xs text-muted-foreground">{email}</p>
           </div>
         </div>
-      </Panel>
 
-      <Panel className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="displayName">Display name</Label>
-          <Input id="displayName" defaultValue="Avery Chen" />
+          <Input id="displayName" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" defaultValue="avery@chatgrp.io" readOnly className="text-muted-foreground" />
-          <p className="text-xs text-muted-foreground">Your email is managed by your workspace.</p>
-        </div>
-        <div className="flex items-center justify-between border-t border-border pt-4">
-          <div>
-            <p className="text-sm font-medium text-foreground">Password</p>
-            <p className="text-xs text-muted-foreground">Last changed 3 months ago</p>
-          </div>
-          <Button variant="outline" size="sm">
-            Change password
-          </Button>
+          <Input id="email" value={email} readOnly className="text-muted-foreground" />
         </div>
         <div className="flex justify-end">
-          <Button size="sm">Save changes</Button>
+          <Button size="sm" onClick={() => void saveName()} disabled={saving}>
+            {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+            Save changes
+          </Button>
         </div>
       </Panel>
+
+      <Panel className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-foreground">Sign out</p>
+          <p className="text-xs text-muted-foreground">Sign out of ChatGRP on this device.</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => void signOut()} disabled={signingOut}>
+          {signingOut ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
+          Sign out
+        </Button>
+      </Panel>
+
+      <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-foreground">Delete account</p>
+            <p className="text-xs text-muted-foreground">
+              Permanently delete your account, sessions, and graph history.
+            </p>
+          </div>
+          <Dialog>
+            <DialogTrigger render={<Button variant="destructive" size="sm">Delete account</Button>} />
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete your account?</DialogTitle>
+                <DialogDescription>
+                  This permanently removes all of your sessions, graphs, prompts, and billing
+                  history. This action cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="confirm">Type DELETE to confirm</Label>
+                <Input
+                  id="confirm"
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  placeholder="DELETE"
+                />
+              </div>
+              <DialogFooter>
+                <DialogClose render={<Button variant="outline">Cancel</Button>} />
+                <Button
+                  variant="destructive"
+                  disabled={confirmText !== 'DELETE' || deleting}
+                  onClick={() => void deleteAccount()}
+                >
+                  {deleting ? <Loader2 className="size-4 animate-spin" /> : null}
+                  Delete account
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
     </SectionShell>
   )
 }
@@ -280,39 +366,3 @@ function PrivacySection() {
   )
 }
 
-function DangerSection() {
-  return (
-    <SectionShell title="Danger Zone" description="Irreversible actions for your account.">
-      <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-5">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-foreground">Delete account</p>
-            <p className="text-xs text-muted-foreground">
-              Permanently delete your account, sessions, and graph history.
-            </p>
-          </div>
-          <Dialog>
-            <DialogTrigger render={<Button variant="destructive" size="sm">Delete account</Button>} />
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Delete your account?</DialogTitle>
-                <DialogDescription>
-                  This will permanently remove all of your sessions, graphs, and billing history.
-                  This action cannot be undone.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="confirm">Type DELETE to confirm</Label>
-                <Input id="confirm" placeholder="DELETE" />
-              </div>
-              <DialogFooter>
-                <DialogClose render={<Button variant="outline">Cancel</Button>} />
-                <DialogClose render={<Button variant="destructive">Delete account</Button>} />
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
-    </SectionShell>
-  )
-}

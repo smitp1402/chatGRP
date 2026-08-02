@@ -45,7 +45,7 @@ export default function Home() {
               ChatGRP turns every AI conversation into a visual node graph. Branch, fork, and switch models — all in one canvas.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
-              <Button size="lg" render={<Link href="/onboarding" />}>
+              <Button size="lg" render={<Link href="/signup" />}>
                 Start for free
                 <ArrowRight className="size-4" />
               </Button>

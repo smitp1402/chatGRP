@@ -50,7 +50,7 @@ export function ShareView({ id }: { id: string }) {
             {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
             {copied ? "Copied" : "Copy link"}
           </Button>
-          <Button size="sm" render={<Link href="/onboarding" />}>
+          <Button size="sm" render={<Link href="/signup" />}>
             Sign up free
           </Button>
         </div>
@@ -139,7 +139,7 @@ export function ShareView({ id }: { id: string }) {
             Viewing a shared ChatGRP session.{" "}
             <span className="text-foreground">Create your own for free.</span>
           </span>
-          <Button size="sm" render={<Link href="/onboarding" />}>
+          <Button size="sm" render={<Link href="/signup" />}>
             Get started
           </Button>
         </div>

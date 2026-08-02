@@ -4,6 +4,7 @@ import * as api from "@/lib/nodes-client"
 
 interface CanvasState {
   nodes: CanvasNode[]
+  sessionId: string | null
   loading: boolean
   error: string | null
   selectedId: string | null
@@ -14,18 +15,20 @@ interface CanvasState {
   persistPosition: (id: string, x: number, y: number) => Promise<void>
   toggleStar: (id: string) => Promise<void>
   toggleCollapse: (id: string) => Promise<void>
+  removeNode: (id: string) => Promise<void>
   clear: () => void
 }
 
 /** Canvas node state for the active session. All updates are immutable. */
 export const useCanvasStore = create<CanvasState>((set, get) => ({
   nodes: [],
+  sessionId: null,
   loading: false,
   error: null,
   selectedId: null,
 
   load: async (sessionId) => {
-    set({ loading: true, error: null })
+    set({ loading: true, error: null, sessionId })
     try {
       const nodes = await api.listNodes(sessionId)
       set({ nodes, loading: false })
@@ -85,5 +88,23 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     }
   },
 
-  clear: () => set({ nodes: [], selectedId: null, error: null }),
+  removeNode: async (id) => {
+    const sessionId = get().sessionId
+    try {
+      await api.deleteNode(id)
+      // Reload so the cascade (descendants removed) is reflected authoritatively.
+      const nodes = sessionId ? await api.listNodes(sessionId) : get().nodes.filter((n) => n.id !== id)
+      set((state) => ({
+        nodes,
+        selectedId:
+          state.selectedId && nodes.some((n) => n.id === state.selectedId)
+            ? state.selectedId
+            : null,
+      }))
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : "Failed to delete node" })
+    }
+  },
+
+  clear: () => set({ nodes: [], sessionId: null, selectedId: null, error: null }),
 }))

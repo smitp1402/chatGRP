@@ -32,9 +32,11 @@ export function ChatPanel() {
   const selectNode = useCanvasStore((s) => s.select)
   const plan = useMeStore((s) => s.plan)
   const loadMe = useMeStore((s) => s.load)
+  const defaultModelId = useMeStore((s) => s.defaultModelId)
 
   const availableModels = modelsForPlan(plan)
   const [model, setModel] = useState<ModelId>('gpt-4o-mini')
+  const appliedDefault = useRef(false)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [forking, setForking] = useState(false)
@@ -51,6 +53,18 @@ export function ChatPanel() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [branch.length, streamText, sending])
+
+  // Apply the user's onboarding default model once, if it's available.
+  useEffect(() => {
+    if (
+      !appliedDefault.current &&
+      defaultModelId &&
+      availableModels.some((m) => m.id === defaultModelId)
+    ) {
+      setModel(defaultModelId as ModelId)
+      appliedDefault.current = true
+    }
+  }, [defaultModelId, availableModels])
 
   // If the current model isn't available on the user's plan, fall back.
   useEffect(() => {

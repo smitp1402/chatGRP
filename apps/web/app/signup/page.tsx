@@ -44,7 +44,8 @@ export default function SignupPage() {
       toast.error(error.message)
       return
     }
-    router.push("/verify-email")
+    // The verify page needs the address to show it back and to power "resend".
+    router.push(`/verify-email?email=${encodeURIComponent(email)}`)
   }
 
   return (

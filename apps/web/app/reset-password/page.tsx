@@ -4,11 +4,13 @@ import { Suspense, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { AlertTriangle, CheckCircle2, Eye, EyeOff, Loader2, Lock } from "lucide-react"
+import { toast } from "sonner"
 import { AuthShell } from "@/components/auth-shell"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
+import { createClient } from "@/lib/supabase/client"
 
 const STRENGTH = [
   { label: "Too weak", color: "var(--color-destructive)" },
@@ -17,6 +19,9 @@ const STRENGTH = [
   { label: "Strong", color: "var(--color-node-ai)" },
   { label: "Very strong", color: "var(--color-node-ai)" },
 ]
+
+/** Supabase rejects anything shorter; keep the client in step with the server. */
+const MIN_PASSWORD_LENGTH = 8
 
 function scorePassword(pw: string): number {
   let score = 0
@@ -33,9 +38,7 @@ export default function ResetPasswordPage() {
     <Suspense
       fallback={
         <AuthShell>
-          <div className="flex items-center justify-center py-6">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
-          </div>
+          <Checking />
         </AuthShell>
       }
     >
@@ -44,22 +47,54 @@ export default function ResetPasswordPage() {
   )
 }
 
+type Gate = "checking" | "ready" | "expired" | "invalid"
+
 function ResetPasswordContent() {
   const params = useSearchParams()
-  const hasError = params.get("error") === "expired" || params.get("error") === "invalid"
+  const paramError = params.get("error")
+  const [gate, setGate] = useState<Gate>("checking")
 
-  if (hasError) {
-    return (
-      <AuthShell>
-        <TokenError />
-      </AuthShell>
-    )
-  }
+  useEffect(() => {
+    // The callback route reports unusable links via ?error= before we get here.
+    if (paramError === "expired" || paramError === "invalid") {
+      setGate(paramError)
+      return
+    }
+
+    let active = true
+    const supabase = createClient()
+
+    // /auth/callback already traded the recovery code for a session cookie.
+    // Without that session there is nothing authorizing a password change, so
+    // the form would fail on submit — show the expired screen up front instead.
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (active) setGate(data.session ? "ready" : "expired")
+      })
+      .catch(() => {
+        if (active) setGate("invalid")
+      })
+
+    return () => {
+      active = false
+    }
+  }, [paramError])
 
   return (
     <AuthShell>
-      <ResetForm />
+      {gate === "checking" && <Checking />}
+      {gate === "ready" && <ResetForm />}
+      {(gate === "expired" || gate === "invalid") && <TokenError reason={gate} />}
     </AuthShell>
+  )
+}
+
+function Checking() {
+  return (
+    <div className="flex items-center justify-center py-6">
+      <Loader2 className="size-5 animate-spin text-muted-foreground" />
+    </div>
   )
 }
 
@@ -73,23 +108,37 @@ function ResetForm() {
 
   const score = useMemo(() => scorePassword(password), [password])
   const mismatch = confirm.length > 0 && confirm !== password
-  const canSubmit = password.length >= 8 && !mismatch && confirm.length > 0
+  const canSubmit =
+    password.length >= MIN_PASSWORD_LENGTH && !mismatch && confirm.length > 0
 
   useEffect(() => {
     if (status !== "done") return
     if (countdown <= 0) {
-      router.push("/")
+      router.push("/login")
       return
     }
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000)
     return () => clearTimeout(t)
   }, [status, countdown, router])
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!canSubmit) return
+    if (!canSubmit || status === "loading") return
     setStatus("loading")
-    setTimeout(() => setStatus("done"), 900)
+
+    const supabase = createClient()
+    const { error } = await supabase.auth.updateUser({ password })
+
+    if (error) {
+      setStatus("idle")
+      toast.error(error.message)
+      return
+    }
+
+    // Drop the recovery session so the new password is actually exercised, and
+    // a shared or stale link can't be walked back into an active account.
+    await supabase.auth.signOut()
+    setStatus("done")
   }
 
   if (status === "done") {
@@ -106,7 +155,7 @@ function ResetForm() {
           </span>
           .
         </p>
-        <Button variant="outline" className="mt-6" render={<Link href="/" />}>
+        <Button variant="outline" className="mt-6" render={<Link href="/login" />}>
           Go to login now
         </Button>
       </div>
@@ -137,6 +186,7 @@ function ResetForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="pr-10"
+              minLength={MIN_PASSWORD_LENGTH}
               required
             />
             <button
@@ -207,22 +257,25 @@ function ResetForm() {
   )
 }
 
-function TokenError() {
+function TokenError({ reason }: { reason: "expired" | "invalid" }) {
   return (
     <div className="flex flex-col items-center text-center">
       <div className="mb-5 flex size-14 items-center justify-center rounded-full bg-destructive/12">
         <AlertTriangle className="size-7 text-destructive" />
       </div>
-      <h1 className="text-xl font-semibold tracking-tight">Link expired or invalid</h1>
+      <h1 className="text-xl font-semibold tracking-tight">
+        {reason === "expired" ? "Link expired" : "Link is invalid"}
+      </h1>
       <p className="mt-2 text-pretty leading-relaxed text-muted-foreground">
-        This password reset link is no longer valid. Reset links expire after 60 minutes
-        for security.
+        {reason === "expired"
+          ? "This password reset link is no longer valid. Reset links expire after 60 minutes for security."
+          : "This password reset link couldn't be verified. It may have already been used."}
       </p>
       <Button className="mt-6 w-full" render={<Link href="/forgot-password" />}>
         Request new link
       </Button>
       <Link
-        href="/"
+        href="/login"
         className="mt-4 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         Back to login

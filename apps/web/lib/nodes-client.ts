@@ -41,3 +41,7 @@ export function updateNode(
     body: JSON.stringify(patch),
   }).then((r) => unwrap<{ id: string }>(r))
 }
+
+export function deleteNode(id: string): Promise<{ id: string }> {
+  return fetch(`/api/nodes/${id}`, { method: "DELETE" }).then((r) => unwrap<{ id: string }>(r))
+}

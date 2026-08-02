@@ -2,7 +2,7 @@
 
 import { memo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
-import { ChevronDown, ChevronRight, Star } from 'lucide-react'
+import { ChevronDown, ChevronRight, Star, Trash2 } from 'lucide-react'
 import { modelById, type ModelId } from '@chatgrp/shared'
 import { cn } from '@/lib/utils'
 
@@ -16,6 +16,7 @@ export interface GraphNodeData {
   childCount: number
   onToggleStar: (id: string) => void
   onToggleCollapse: (id: string) => void
+  onDelete: (id: string) => void
   [key: string]: unknown
 }
 
@@ -53,20 +54,37 @@ function GraphNodeComponent({ id, data, selected }: NodeProps) {
             {label}
           </span>
         </span>
-        <button
-          type="button"
-          aria-label={d.starred ? 'Unstar node' : 'Star node'}
-          onClick={(e) => {
-            e.stopPropagation()
-            d.onToggleStar(id)
-          }}
-          className={cn(
-            'flex size-5 items-center justify-center rounded transition-colors',
-            d.starred ? 'text-amber-400' : 'text-muted-foreground/50 hover:text-muted-foreground',
-          )}
-        >
-          <Star className="size-3.5" fill={d.starred ? 'currentColor' : 'none'} />
-        </button>
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            aria-label="Delete node"
+            onClick={(e) => {
+              e.stopPropagation()
+              const msg =
+                d.childCount > 0
+                  ? `Delete this node and its ${d.childCount} ${d.childCount === 1 ? 'reply' : 'replies'}?`
+                  : 'Delete this node?'
+              if (window.confirm(msg)) d.onDelete(id)
+            }}
+            className="flex size-5 items-center justify-center rounded text-muted-foreground/50 transition-colors hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            aria-label={d.starred ? 'Unstar node' : 'Star node'}
+            onClick={(e) => {
+              e.stopPropagation()
+              d.onToggleStar(id)
+            }}
+            className={cn(
+              'flex size-5 items-center justify-center rounded transition-colors',
+              d.starred ? 'text-amber-400' : 'text-muted-foreground/50 hover:text-muted-foreground',
+            )}
+          >
+            <Star className="size-3.5" fill={d.starred ? 'currentColor' : 'none'} />
+          </button>
+        </div>
       </div>
 
       <p className="line-clamp-2 px-3 pt-1 text-[12px] font-medium leading-snug text-card-foreground">

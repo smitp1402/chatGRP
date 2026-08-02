@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { AuthShell } from "@/components/auth-shell"
@@ -12,9 +12,30 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
+import { safeNext } from "@/lib/auth-redirect"
 
 export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <AuthShell>
+          <div className="flex items-center justify-center py-6">
+            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          </div>
+        </AuthShell>
+      }
+    >
+      <LoginForm />
+    </Suspense>
+  )
+}
+
+function LoginForm() {
   const router = useRouter()
+  const params = useSearchParams()
+  // Middleware parks the originally requested path here when it bounces a
+  // signed-out user, so we can drop them back where they were headed.
+  const next = safeNext(params.get("next"))
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -31,7 +52,7 @@ export default function LoginPage() {
       toast.error(error.message)
       return
     }
-    router.push("/app")
+    router.push(next)
     router.refresh()
   }
 
@@ -46,7 +67,7 @@ export default function LoginPage() {
 
       <DevLoginButton />
 
-      <GoogleButton label="Continue with Google" />
+      <GoogleButton label="Continue with Google" next={next} />
 
       <div className="my-5 flex items-center gap-3">
         <span className="h-px flex-1 bg-border" />

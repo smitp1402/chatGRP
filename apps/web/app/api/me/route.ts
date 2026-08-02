@@ -10,7 +10,7 @@ export async function GET() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("plan")
+    .select("plan, onboarded, default_model_id")
     .eq("user_id", userId)
     .single()
   const plan = (profile?.plan ?? "free") as Plan
@@ -29,5 +29,7 @@ export async function GET() {
     creditsUsed: used,
     creditsCap: cap,
     creditsRemaining: Math.max(0, cap - used),
+    onboarded: profile?.onboarded ?? false,
+    defaultModelId: (profile?.default_model_id ?? null) as string | null,
   })
 }

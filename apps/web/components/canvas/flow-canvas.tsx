@@ -34,6 +34,7 @@ interface FlowCanvasProps {
   onMoveNode: (id: string, x: number, y: number) => void
   onToggleStar: (id: string) => void
   onToggleCollapse: (id: string) => void
+  onDeleteNode: (id: string) => void
 }
 
 function Canvas({
@@ -43,6 +44,7 @@ function Canvas({
   onMoveNode,
   onToggleStar,
   onToggleCollapse,
+  onDeleteNode,
 }: FlowCanvasProps) {
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState<Node>([])
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState<Edge>([])
@@ -71,10 +73,11 @@ function Canvas({
             childCount: childCount(nodes, n.id),
             onToggleStar,
             onToggleCollapse,
+            onDelete: onDeleteNode,
           } satisfies GraphNodeData,
         })),
     )
-  }, [nodes, hidden, layout, selectedId, onToggleStar, onToggleCollapse, setRfNodes])
+  }, [nodes, hidden, layout, selectedId, onToggleStar, onToggleCollapse, onDeleteNode, setRfNodes])
 
   useEffect(() => {
     setRfEdges(

@@ -4,12 +4,21 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 
-export function GoogleButton({ label }: { label: string }) {
+interface GoogleButtonProps {
+  label: string
+  /** Path to land on after the callback exchanges the code. Defaults to /app. */
+  next?: string
+}
+
+export function GoogleButton({ label, next }: GoogleButtonProps) {
   async function signInWithGoogle() {
     const supabase = createClient()
+    const callback = new URL("/auth/callback", window.location.origin)
+    if (next) callback.searchParams.set("next", next)
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: callback.toString() },
     })
     if (error) {
       toast.error(error.message)

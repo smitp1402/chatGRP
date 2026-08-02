@@ -73,7 +73,7 @@ export default function PricingPage() {
               Create your first conversation graph in seconds. No credit card required.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
-              <Button size="lg" render={<Link href="/onboarding" />}>
+              <Button size="lg" render={<Link href="/signup" />}>
                 Start for free
                 <ArrowRight className="size-4" />
               </Button>

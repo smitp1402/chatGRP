@@ -8,10 +8,10 @@ import {
   Pencil,
   Plus,
   Search,
-  Settings,
   Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
 import type { SessionListItem } from '@chatgrp/shared'
 import { Logo } from '@/components/logo'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -32,21 +32,25 @@ import { relativeTime, sessionGroup, type SessionGroupLabel } from '@/lib/time'
 const GROUP_ORDER: SessionGroupLabel[] = ['Today', 'Yesterday', 'Last 7 days', 'Older']
 
 export function AppSidebar() {
-  const { sessions, activeId, loading, error, load, create, rename, remove, setActive } =
+  const { sessions, activeId, loading, error, create, rename, remove, setActive } =
     useSessionStore()
-  const { plan, creditsUsed, creditsCap, load: loadMe } = useMeStore()
+  const { plan, creditsUsed, creditsCap } = useMeStore()
   const [query, setQuery] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [email, setEmail] = useState<string | null>(null)
 
-  useEffect(() => {
-    void load()
-    void loadMe()
-  }, [load, loadMe])
-
+  // Sessions + plan are loaded by the app page (so it works even when this
+  // sidebar is hidden by a layout preset). We just render the store here.
   useEffect(() => {
     if (error) toast.error(error)
   }, [error])
+
+  useEffect(() => {
+    createClient()
+      .auth.getSession()
+      .then(({ data }) => setEmail(data.session?.user?.email ?? null))
+  }, [])
 
   const filtered = useMemo(
     () => sessions.filter((s) => s.name.toLowerCase().includes(query.toLowerCase())),
@@ -169,28 +173,28 @@ export function AppSidebar() {
           <Progress value={pct} className="h-1.5" />
         </Link>
 
-        <div className="flex items-center gap-2">
-          <Avatar className="size-8">
-            <AvatarImage src="/user-avatar.png" alt="Account" />
-            <AvatarFallback className="bg-node-user text-node-user-foreground text-xs">
-              AC
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium text-foreground">Your account</p>
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-px font-mono text-[10px] font-medium text-primary">
-              <Sparkles className="size-2.5" />
-              {planLabel}
-            </span>
-          </div>
-          <ThemeCycle />
+        <div className="flex items-center gap-1">
           <Link
             href="/app/settings"
-            aria-label="Settings"
-            className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-md p-1 transition-colors hover:bg-accent"
           >
-            <Settings className="size-4" />
+            <Avatar className="size-8">
+              <AvatarImage src="/user-avatar.png" alt="Account" />
+              <AvatarFallback className="bg-node-user text-node-user-foreground text-xs">
+                {(email?.[0] ?? 'U').toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium text-foreground">
+                {email ?? 'Your account'}
+              </p>
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-px font-mono text-[10px] font-medium text-primary">
+                <Sparkles className="size-2.5" />
+                {planLabel}
+              </span>
+            </div>
           </Link>
+          <ThemeCycle />
         </div>
       </div>
     </aside>

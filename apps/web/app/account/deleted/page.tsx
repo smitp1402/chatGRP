@@ -63,7 +63,7 @@ export default function AccountDeletedPage() {
         </p>
 
         <div className="mt-8 flex w-full flex-col items-center gap-3">
-          <Button variant="outline" className="w-full" render={<Link href="/onboarding" />}>
+          <Button variant="outline" className="w-full" render={<Link href="/signup" />}>
             Create a new account
           </Button>
           <Link
