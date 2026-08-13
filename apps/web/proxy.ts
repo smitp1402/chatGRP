@@ -7,7 +7,7 @@ import { AFTER_LOGIN, isPublicRoute } from "@/lib/auth-redirect"
  * expires and (b) gate private routes server-side, so unauthenticated users
  * never render the app shell.
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Reassigned by setAll below whenever Supabase rotates the session cookie.
   let response = NextResponse.next({ request })
 

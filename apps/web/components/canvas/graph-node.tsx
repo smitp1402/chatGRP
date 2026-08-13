@@ -1,13 +1,21 @@
 'use client'
 
-import { memo } from 'react'
-import { Handle, Position, type NodeProps } from '@xyflow/react'
+import { memo, useEffect, useRef, useState } from 'react'
+import { Handle, NodeToolbar, Position, type NodeProps } from '@xyflow/react'
 import { ChevronDown, ChevronRight, Star, Trash2 } from 'lucide-react'
 import { modelById, type ModelId } from '@chatgrp/shared'
 import { cn } from '@/lib/utils'
 
+/** How long the pointer must rest on a node before the answer peek opens. */
+const PEEK_OPEN_MS = 350
+/** Grace period so the pointer can travel from the node onto the peek panel. */
+const PEEK_CLOSE_MS = 120
+/** Answers longer than this are clipped in the peek — the chat panel has the rest. */
+const PEEK_MAX_CHARS = 900
+
 export interface GraphNodeData {
   question: string
+  answer: string
   modelId: ModelId | null
   credits: number
   isFork: boolean
@@ -32,6 +40,20 @@ function GraphNodeComponent({ id, data, selected }: NodeProps) {
   const accent = d.isFork ? 'var(--color-node-fork)' : 'var(--color-node-ai)'
   const label = d.isFork ? 'Fork' : 'AI'
 
+  const [peeking, setPeeking] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
+
+  function schedulePeek(next: boolean) {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => setPeeking(next), next ? PEEK_OPEN_MS : PEEK_CLOSE_MS)
+  }
+
+  const answer = d.answer?.trim() ?? ''
+  const clipped = answer.length > PEEK_MAX_CHARS
+  const preview = clipped ? `${answer.slice(0, PEEK_MAX_CHARS).trimEnd()}…` : answer
+
   return (
     <div
       className={cn(
@@ -41,7 +63,37 @@ function GraphNodeComponent({ id, data, selected }: NodeProps) {
         selected && 'ring-2 ring-ring ring-offset-2 ring-offset-canvas',
       )}
       style={{ borderColor: accent }}
+      onMouseEnter={() => schedulePeek(true)}
+      onMouseLeave={() => schedulePeek(false)}
     >
+      {answer && (
+        <NodeToolbar
+          isVisible={peeking}
+          position={Position.Right}
+          offset={12}
+          align="start"
+          onMouseEnter={() => schedulePeek(true)}
+          onMouseLeave={() => schedulePeek(false)}
+        >
+          <div
+            className="w-[320px] rounded-xl border border-border bg-popover p-3 text-left shadow-lg"
+            style={{ borderTopColor: accent, borderTopWidth: 2 }}
+          >
+            <p className="mb-1.5 font-mono text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Answer
+            </p>
+            <p className="max-h-[220px] overflow-y-auto whitespace-pre-wrap text-[12px] leading-relaxed text-popover-foreground">
+              {preview}
+            </p>
+            {clipped && (
+              <p className="mt-2 border-t border-border pt-1.5 font-mono text-[10px] text-muted-foreground">
+                Click the node to read the full answer
+              </p>
+            )}
+          </div>
+        </NodeToolbar>
+      )}
+
       <Handle type="target" position={Position.Top} className="!size-1.5 !border-0 !bg-muted-foreground" />
 
       <div className="flex items-center justify-between px-3 pt-2.5">

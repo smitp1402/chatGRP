@@ -65,6 +65,7 @@ function Canvas({
           selected: n.id === selectedId,
           data: {
             question: n.question,
+            answer: n.answer,
             modelId: n.modelId,
             credits: n.credits,
             isFork: n.isFork,

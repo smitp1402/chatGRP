@@ -8,6 +8,9 @@ interface Me {
   creditsRemaining: number
   onboarded: boolean
   defaultModelId: string | null
+  /** Paid plan that won't renew — active until `currentPeriodEnd`, then Free. */
+  cancelAtPeriodEnd: boolean
+  currentPeriodEnd: string | null
 }
 
 interface MeState extends Me {
@@ -22,6 +25,8 @@ const DEFAULT: Me = {
   creditsRemaining: 100,
   onboarded: false, // redirects are gated on `loaded`, so this never flashes
   defaultModelId: null,
+  cancelAtPeriodEnd: false,
+  currentPeriodEnd: null,
 }
 
 /** Current user's plan + credit usage. Refreshed after each generation. */
