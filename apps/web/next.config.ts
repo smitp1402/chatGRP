@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Transpile the workspace package (ships raw .ts) so cloud builds resolve it.
+  transpilePackages: ["@chatgrp/shared"],
 };
 
 export default nextConfig;

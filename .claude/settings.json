@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(cd \"c:\\\\DRIVE_F\\\\Master\\\\YC\\\\GauntletAI\\\\ChatGRP\"; pnpm --filter web build 2>&1 | Select-String -Pattern \"Compiled|Failed|Type error|Error:\" | Select-Object -First 4; git add -A; git commit -q -m \"chore\\(web\\): transpile @chatgrp/shared for cloud builds\"; $env:GIT_TERMINAL_PROMPT=0; git push origin main 2>&1 | Select-Object -Last 2)"
+    ]
+  }
+}
