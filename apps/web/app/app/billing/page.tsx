@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import { ANALYTICS_EVENTS, track } from '@/lib/analytics'
 import { cn } from '@/lib/utils'
 import { useMeStore } from '@/lib/stores/me-store'
 import {
@@ -73,6 +74,8 @@ export default function BillingPage() {
   async function checkout(target: 'pro') {
     setBusy(target)
     try {
+      // Fired before the redirect — startCheckout navigates away and never returns.
+      track(ANALYTICS_EVENTS.upgradeClicked, { plan: target })
       await startCheckout(target)
     } catch (err) {
       setBusy(null)

@@ -1,4 +1,6 @@
 import { create } from "zustand"
+
+import { ANALYTICS_EVENTS, track } from "@/lib/analytics"
 import type { SessionListItem } from "@chatgrp/shared"
 import * as api from "@/lib/sessions-client"
 
@@ -49,6 +51,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       sessions: [session, ...state.sessions],
       activeId: session.id,
     }))
+    // sessionCount >= 2 is the "they came back" signal.
+    track(ANALYTICS_EVENTS.sessionCreated, { sessionCount: get().sessions.length })
     return session
   },
 

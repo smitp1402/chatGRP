@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { AuthShell } from "@/components/auth-shell"
+import { ANALYTICS_EVENTS, track } from "@/lib/analytics"
 import { GoogleButton } from "@/components/google-button"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -44,6 +45,7 @@ export default function SignupPage() {
       toast.error(error.message)
       return
     }
+    track(ANALYTICS_EVENTS.signedUp, { method: "email" })
     // The verify page needs the address to show it back and to power "resend".
     router.push(`/verify-email?email=${encodeURIComponent(email)}`)
   }

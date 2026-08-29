@@ -12,6 +12,7 @@ import {
   type CanvasAttachment,
   type ModelId,
 } from '@chatgrp/shared'
+import { ANALYTICS_EVENTS, track } from '@/lib/analytics'
 import { AttachmentTray } from '@/components/chat/attachment-tray'
 import { SentAttachments } from '@/components/chat/sent-attachments'
 import {
@@ -182,6 +183,15 @@ export function ChatPanel() {
       {
         onToken: (chunk) => setStreamText((prev) => prev + chunk),
         onDone: async (nodeId) => {
+          // Captured on success only — a failed generation is not activation.
+          track(ANALYTICS_EVENTS.messageSent, {
+            modelId: model,
+            attachmentCount: uploaded.length,
+            // First message in THIS session. First-ever is derived in PostHog
+            // as the earliest message_sent per identified user.
+            isFirstInSession: nodes.length === 0,
+          })
+          if (forking) track(ANALYTICS_EVENTS.nodeForked, { modelId: model })
           sent.forEach(releasePending)
           await loadNodes(activeId)
           void loadMe()

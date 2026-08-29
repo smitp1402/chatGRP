@@ -1,7 +1,9 @@
 import type React from 'react'
+import { Suspense } from 'react'
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import { AnalyticsProvider } from '@/components/analytics-provider'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
@@ -44,6 +46,10 @@ export default function RootLayout({
           <Toaster />
         </ThemeProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
+        {/* useSearchParams needs a boundary or every static page opts into SSR. */}
+        <Suspense fallback={null}>
+          <AnalyticsProvider />
+        </Suspense>
       </body>
     </html>
   )

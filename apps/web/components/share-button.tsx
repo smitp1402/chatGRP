@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Check, Loader2, Share2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { ANALYTICS_EVENTS, track } from '@/lib/analytics'
 import { createShareLink } from '@/lib/share-client'
 import { cn } from '@/lib/utils'
 
@@ -18,6 +19,7 @@ export function ShareButton({ sessionId }: { sessionId: string }) {
     setBusy(true)
     try {
       const token = await createShareLink(sessionId)
+      track(ANALYTICS_EVENTS.shareLinkCreated)
       const url = `${window.location.origin}/share/${token}`
       await navigator.clipboard?.writeText(url)
       setCopied(true)
