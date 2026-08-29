@@ -1,9 +1,27 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { BookmarkPlus, ChevronRight, Download, GitFork, Loader2, SendHorizontal, Sparkles } from 'lucide-react'
+import { BookmarkPlus, ChevronRight, Download, GitFork, Loader2, Paperclip, SendHorizontal, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
-import { modelById, modelsForPlan, type ModelId } from '@chatgrp/shared'
+import {
+  ALLOWED_MIME_TYPES,
+  MAX_ATTACHMENTS_PER_MESSAGE,
+  modelById,
+  modelsForPlan,
+  type AttachmentInput,
+  type CanvasAttachment,
+  type ModelId,
+} from '@chatgrp/shared'
+import { AttachmentTray } from '@/components/chat/attachment-tray'
+import { SentAttachments } from '@/components/chat/sent-attachments'
+import {
+  deleteAttachment,
+  makePending,
+  releasePending,
+  screenFiles,
+  uploadAttachment,
+  type PendingAttachment,
+} from '@/lib/attachments-client'
 import { PromptLibrary } from '@/components/prompts/prompt-library'
 import {
   DropdownMenu,
@@ -44,6 +62,9 @@ export function ChatPanel() {
   const [streamText, setStreamText] = useState('')
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [saveDraft, setSaveDraft] = useState<string | undefined>(undefined)
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([])
+  const [dragOver, setDragOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const branch = pathToRoot(nodes, selectedId)
@@ -73,11 +94,66 @@ export function ChatPanel() {
     }
   }, [availableModels, model])
 
-  async function handleSend() {
-    const message = draft.trim()
-    if (!message || sending) return
+  /** Screen picked files, then upload each one in the background. */
+  async function addFiles(files: File[]) {
+    if (files.length === 0) return
     if (!activeId) {
       toast.error('Select or create a session first.')
+      return
+    }
+
+    const { accepted, rejected } = screenFiles(files, attachments.length)
+    if (rejected.length > 0) toast.error(rejected.join('\n'))
+    if (accepted.length === 0) return
+
+    const pending = accepted.map(makePending)
+    setAttachments((prev) => [...prev, ...pending])
+
+    await Promise.all(
+      pending.map(async (item) => {
+        try {
+          const uploaded = await uploadAttachment(item.file, activeId)
+          setAttachments((prev) =>
+            prev.map((a) =>
+              a.localId === item.localId ? { ...a, status: 'ready', uploaded } : a,
+            ),
+          )
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Upload failed'
+          setAttachments((prev) =>
+            prev.map((a) =>
+              a.localId === item.localId ? { ...a, status: 'error', error: message } : a,
+            ),
+          )
+          toast.error(`${item.file.name}: ${message}`)
+        }
+      }),
+    )
+  }
+
+  /** Drop a pending file, deleting the uploaded object if it already landed. */
+  function removeAttachment(localId: string) {
+    setAttachments((prev) => {
+      const target = prev.find((a) => a.localId === localId)
+      if (target) {
+        releasePending(target)
+        if (target.uploaded) void deleteAttachment(target.uploaded.storagePath)
+      }
+      return prev.filter((a) => a.localId !== localId)
+    })
+  }
+
+  async function handleSend() {
+    const message = draft.trim()
+    const ready = attachments.filter((a) => a.status === 'ready' && a.uploaded)
+    // An attachment on its own is a valid message — a screenshot with no words.
+    if ((!message && ready.length === 0) || sending) return
+    if (!activeId) {
+      toast.error('Select or create a session first.')
+      return
+    }
+    if (attachments.some((a) => a.status === 'uploading')) {
+      toast.error('Wait for uploads to finish.')
       return
     }
 
@@ -85,16 +161,28 @@ export function ChatPanel() {
     // Fork just marks the new node as a fork so it renders as a dashed branch.
     const parentId = selectedId
 
+    const sent = [...attachments]
+    const uploaded: AttachmentInput[] = ready.map((a) => a.uploaded!)
+
     setSending(true)
     setPendingQuestion(message)
     setStreamText('')
     setDraft('')
+    setAttachments([])
 
     await generateStream(
-      { sessionId: activeId, message, modelId: model, parentId, isFork: forking },
+      {
+        sessionId: activeId,
+        message,
+        modelId: model,
+        parentId,
+        isFork: forking,
+        attachments: uploaded,
+      },
       {
         onToken: (chunk) => setStreamText((prev) => prev + chunk),
         onDone: async (nodeId) => {
+          sent.forEach(releasePending)
           await loadNodes(activeId)
           void loadMe()
           selectNode(nodeId)
@@ -108,6 +196,9 @@ export function ChatPanel() {
           setSending(false)
           setPendingQuestion('')
           setStreamText('')
+          // Put the files back so a failed send is retryable without re-picking.
+          setAttachments(sent)
+          setDraft(message)
         },
       },
     )
@@ -168,7 +259,7 @@ export function ChatPanel() {
 
         {branch.map((node) => (
           <div key={node.id} className="space-y-4">
-            <UserBubble text={node.question} />
+            <UserBubble text={node.question} attachments={node.attachments} />
             {node.answer && (
               <AiBubble text={node.answer} modelId={node.modelId} credits={node.credits} />
             )}
@@ -268,10 +359,62 @@ export function ChatPanel() {
           </p>
         )}
 
-        <div className="flex items-end gap-2 rounded-xl border border-input bg-card p-2 focus-within:border-ring focus-within:ring-1 focus-within:ring-ring">
+        <AttachmentTray items={attachments} onRemove={removeAttachment} />
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept={ALLOWED_MIME_TYPES.join(',')}
+          className="hidden"
+          onChange={(e) => {
+            void addFiles(Array.from(e.target.files ?? []))
+            e.target.value = ''
+          }}
+        />
+
+        <div
+          onDragOver={(e) => {
+            e.preventDefault()
+            setDragOver(true)
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault()
+            setDragOver(false)
+            void addFiles(Array.from(e.dataTransfer.files))
+          }}
+          className={cn(
+            'flex items-end gap-2 rounded-xl border bg-card p-2 transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring',
+            dragOver ? 'border-primary bg-primary/5' : 'border-input',
+          )}
+        >
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={sending || attachments.length >= MAX_ATTACHMENTS_PER_MESSAGE}
+            title={
+              attachments.length >= MAX_ATTACHMENTS_PER_MESSAGE
+                ? `Up to ${MAX_ATTACHMENTS_PER_MESSAGE} files per message`
+                : 'Attach files or images'
+            }
+            aria-label="Attach files or images"
+            className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
+          >
+            <Paperclip className="size-4" />
+          </button>
+
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
+            onPaste={(e) => {
+              // Screenshots arrive on the clipboard as files, not text.
+              const files = Array.from(e.clipboardData.files)
+              if (files.length > 0) {
+                e.preventDefault()
+                void addFiles(files)
+              }
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault()
@@ -279,13 +422,19 @@ export function ChatPanel() {
               }
             }}
             rows={1}
-            placeholder={selectedId ? 'Reply to this node…' : 'Ask anything to start…'}
+            placeholder={
+              dragOver
+                ? 'Drop files to attach…'
+                : selectedId
+                  ? 'Reply to this node…'
+                  : 'Ask anything to start…'
+            }
             className="max-h-32 min-h-8 flex-1 resize-none bg-transparent px-1 py-1 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none"
           />
           <button
             type="button"
             onClick={() => void handleSend()}
-            disabled={!draft.trim() || sending}
+            disabled={(!draft.trim() && attachments.length === 0) || sending}
             aria-label="Send message"
             className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
           >
@@ -308,12 +457,21 @@ export function ChatPanel() {
   )
 }
 
-function UserBubble({ text }: { text: string }) {
+function UserBubble({
+  text,
+  attachments = [],
+}: {
+  text: string
+  attachments?: CanvasAttachment[]
+}) {
   return (
-    <div className="flex justify-end">
-      <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-node-user px-3 py-2 text-[13px] leading-relaxed text-node-user-foreground">
-        {text}
-      </div>
+    <div className="flex flex-col items-end">
+      {text && (
+        <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-node-user px-3 py-2 text-[13px] leading-relaxed text-node-user-foreground">
+          {text}
+        </div>
+      )}
+      <SentAttachments items={attachments} />
     </div>
   )
 }

@@ -13,9 +13,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
+from . import attachments as att
 from .auth import verify_user
 from .billing import assert_can_generate, record_usage
-from .budget import approx_tokens, enforce_budget, total_tokens
+from .budget import approx_tokens, enforce_budget, message_tokens, total_tokens
 from .config import settings
 from .context import build_context
 from .db import db, session_belongs_to
@@ -33,12 +34,23 @@ app.add_middleware(
 )
 
 
+class AttachmentRef(BaseModel):
+    """A file the client has already uploaded to the attachments bucket."""
+
+    storage_path: str
+    file_name: str
+    mime_type: str
+    size_bytes: int
+    kind: str
+
+
 class GenerateRequest(BaseModel):
     session_id: str
     message: str
     model_id: str = "gpt-4o-mini"
     parent_id: str | None = None
     is_fork: bool = False
+    attachments: list[AttachmentRef] = []
 
 
 def _now() -> str:
@@ -61,6 +73,17 @@ async def generate(body: GenerateRequest, user_id: str = Depends(verify_user)):
 
     if not session_belongs_to(body.session_id, user_id):
         raise HTTPException(status_code=403, detail="Session not found")
+
+    files = [a.model_dump() for a in body.attachments]
+    if not body.message.strip() and not files:
+        raise HTTPException(status_code=422, detail="Message or attachment required")
+
+    # Attachment paths are client-supplied and the service-role key ignores RLS,
+    # so ownership must be proven before any object is fetched.
+    try:
+        att.verify_ownership(files, user_id, body.session_id)
+    except att.AttachmentError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     # Plan gating + credit check (raises 402/403 before any work is done).
     assert_can_generate(user_id, body.model_id)
@@ -89,9 +112,21 @@ async def generate(body: GenerateRequest, user_id: str = Depends(verify_user)):
     )
     node_id = node["id"]
 
-    db().table("messages").insert(
-        {"node_id": node_id, "session_id": body.session_id, "role": "user", "content": body.message}
-    ).execute()
+    user_message = (
+        db()
+        .table("messages")
+        .insert(
+            {
+                "node_id": node_id,
+                "session_id": body.session_id,
+                "role": "user",
+                "content": body.message,
+            }
+        )
+        .execute()
+        .data[0]
+    )
+    att.persist(files, user_message["id"], body.session_id, user_id)
 
     assistant = (
         db()
@@ -121,7 +156,27 @@ async def generate(body: GenerateRequest, user_id: str = Depends(verify_user)):
     # Build the branch context (root -> parent), append the new message, and
     # trim it to the input-token budget (oldest pairs dropped, root preserved).
     context = build_context(body.session_id, body.parent_id)
-    context.append({"role": "user", "content": body.message})
+    try:
+        current = att.build_message_content(body.message, files)
+    except att.AttachmentError as exc:
+        db().table("generation_attempts").update(
+            {"status": "failed", "error": str(exc), "completed_at": _now()}
+        ).eq("id", attempt["id"]).execute()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    # A single message that busts the cap on its own can never be trimmed to
+    # fit, so reject it up front rather than silently sending a truncated one.
+    if message_tokens(current) > settings.max_input_tokens:
+        db().table("generation_attempts").update(
+            {"status": "failed", "error": "input too large", "completed_at": _now()}
+        ).eq("id", attempt["id"]).execute()
+        raise HTTPException(
+            status_code=413,
+            detail="This message and its attachments exceed the input limit. "
+            "Try fewer or smaller files.",
+        )
+
+    context.append(current)
     context = enforce_budget(context)
     tokens_input = total_tokens(context)
 

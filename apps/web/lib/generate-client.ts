@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/client"
-import type { ModelId } from "@chatgrp/shared"
+import type { AttachmentInput, ModelId } from "@chatgrp/shared"
 
 const AI_URL = process.env.NEXT_PUBLIC_AI_URL ?? "http://localhost:8000"
 
@@ -9,6 +9,7 @@ export interface GenerateInput {
   modelId: ModelId
   parentId: string | null
   isFork?: boolean
+  attachments?: AttachmentInput[]
 }
 
 export interface GenerateCallbacks {
@@ -44,6 +45,13 @@ export async function generateStream(
         model_id: input.modelId,
         parent_id: input.parentId,
         is_fork: input.isFork ?? false,
+        attachments: (input.attachments ?? []).map((a) => ({
+          storage_path: a.storagePath,
+          file_name: a.fileName,
+          mime_type: a.mimeType,
+          size_bytes: a.sizeBytes,
+          kind: a.kind,
+        })),
       }),
     })
   } catch {

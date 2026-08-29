@@ -2,7 +2,7 @@
 
 import { memo, useEffect, useRef, useState } from 'react'
 import { Handle, NodeToolbar, Position, type NodeProps } from '@xyflow/react'
-import { ChevronDown, ChevronRight, Star, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, Paperclip, Star, Trash2 } from 'lucide-react'
 import { modelById, type ModelId } from '@chatgrp/shared'
 import { cn } from '@/lib/utils'
 
@@ -22,6 +22,10 @@ export interface GraphNodeData {
   starred: boolean
   collapsed: boolean
   childCount: number
+  /** How many files rode along with the question. */
+  attachmentCount: number
+  /** Shared/public view — hides the mutating controls (star, delete). */
+  readOnly?: boolean
   onToggleStar: (id: string) => void
   onToggleCollapse: (id: string) => void
   onDelete: (id: string) => void
@@ -106,7 +110,7 @@ function GraphNodeComponent({ id, data, selected }: NodeProps) {
             {label}
           </span>
         </span>
-        <div className="flex items-center gap-0.5">
+        <div className={cn('flex items-center gap-0.5', d.readOnly && 'hidden')}>
           <button
             type="button"
             aria-label="Delete node"
@@ -156,8 +160,19 @@ function GraphNodeComponent({ id, data, selected }: NodeProps) {
             {model?.name ?? 'No model'}
           </span>
         </span>
-        <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
-          {d.credits} cr
+        <span className="flex items-center gap-2">
+          {d.attachmentCount > 0 && (
+            <span
+              className="flex items-center gap-0.5 font-mono text-[10px] text-muted-foreground tabular-nums"
+              title={`${d.attachmentCount} attachment${d.attachmentCount === 1 ? '' : 's'}`}
+            >
+              <Paperclip className="size-2.5" />
+              {d.attachmentCount}
+            </span>
+          )}
+          <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
+            {d.credits} cr
+          </span>
         </span>
       </div>
 
