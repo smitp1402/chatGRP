@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
@@ -26,6 +26,14 @@ export default function SignupPage() {
 
   const mismatch = confirm.length > 0 && confirm !== password
   const canSubmit = name && email && password && confirm && !mismatch && agreed
+
+  // Set when the visitor arrived from a shared graph's Fork button, so the
+  // page explains why they are being asked to sign up. Read from window rather
+  // than useSearchParams, which would force a Suspense boundary on this page.
+  const [forking, setForking] = useState(false)
+  useEffect(() => {
+    setForking(new URLSearchParams(window.location.search).get("fork") === "1")
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -53,9 +61,13 @@ export default function SignupPage() {
   return (
     <AuthShell>
       <div className="mb-6 flex flex-col items-center text-center">
-        <h1 className="text-xl font-semibold tracking-tight">Create your account</h1>
+        <h1 className="text-xl font-semibold tracking-tight">
+          {forking ? "Create an account to fork" : "Create your account"}
+        </h1>
         <p className="mt-2 leading-relaxed text-muted-foreground">
-          Start mapping conversations as graphs.
+          {forking
+            ? "The shared graph will be copied into your account as soon as you are in."
+            : "Start mapping conversations as graphs."}
         </p>
       </div>
 

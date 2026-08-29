@@ -1,14 +1,22 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Copy, Check, Eye, GitBranch, Loader2, MessageSquareText } from "lucide-react"
+import { Copy, Check, Eye, GitBranch, GitFork, Loader2, MessageSquareText } from "lucide-react"
 import { modelById, type CanvasNode } from "@chatgrp/shared"
 import { Logo } from "@/components/logo"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { FlowCanvas } from "@/components/canvas/flow-canvas"
-import { fetchSharedGraph, type SharedGraph } from "@/lib/share-client"
+import {
+  fetchSharedGraph,
+  forkSharedGraph,
+  UnauthenticatedError,
+  type SharedGraph,
+} from "@/lib/share-client"
+import { rememberFork } from "@/lib/pending-fork"
+import { toast } from "sonner"
 
 const PROVIDER_DOT: Record<string, string> = {
   openai: "var(--chart-5)",
@@ -20,6 +28,8 @@ const PROVIDER_DOT: Record<string, string> = {
 const noop = () => {}
 
 export function ShareView({ id }: { id: string }) {
+  const router = useRouter()
+  const [forking, setForking] = useState(false)
   const [graph, setGraph] = useState<SharedGraph | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -40,6 +50,28 @@ export function ShareView({ id }: { id: string }) {
       cancelled = true
     }
   }, [id])
+
+  /**
+   * Copy this graph into the viewer's account. A logged-out visitor is parked
+   * at sign-up with the intent remembered, and the fork completes when they
+   * land in the app.
+   */
+  async function fork() {
+    setForking(true)
+    try {
+      const { sessionId } = await forkSharedGraph(id)
+      toast.success("Graph forked", { description: "It is now in your sessions." })
+      router.push(`/app?session=${sessionId}`)
+    } catch (err) {
+      if (err instanceof UnauthenticatedError) {
+        rememberFork(id)
+        router.push("/signup?fork=1")
+        return
+      }
+      toast.error(err instanceof Error ? err.message : "Could not fork this graph.")
+      setForking(false)
+    }
+  }
 
   function copyLink() {
     const url = typeof window !== "undefined" ? window.location.href : ""
@@ -79,8 +111,9 @@ export function ShareView({ id }: { id: string }) {
             {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
             {copied ? "Copied" : "Copy link"}
           </Button>
-          <Button size="sm" render={<Link href="/signup" />}>
-            Sign up free
+          <Button size="sm" onClick={fork} disabled={forking}>
+            {forking ? <Loader2 className="size-4 animate-spin" /> : <GitFork className="size-4" />}
+            {forking ? "Forking…" : "Fork this graph"}
           </Button>
         </div>
       </header>

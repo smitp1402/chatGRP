@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Network } from 'lucide-react'
@@ -9,6 +9,7 @@ import { FlowCanvas } from '@/components/canvas/flow-canvas'
 import { ChatPanel } from '@/components/chat-panel'
 import { LayoutSwitcher } from '@/components/layout/layout-switcher'
 import { ShareButton } from '@/components/share-button'
+import { ForkResumer } from '@/components/fork-resumer'
 import { ResizableSplit } from '@/components/layout/resizable-split'
 import { createClient } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/stores/session-store'
@@ -77,6 +78,11 @@ export default function AppPage() {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
+      {/* Completes a fork started from a share link; useSearchParams needs a boundary. */}
+      <Suspense fallback={null}>
+        <ForkResumer />
+      </Suspense>
+
       {cfg.sidebar && <AppSidebar />}
 
       <div className="relative flex-1">

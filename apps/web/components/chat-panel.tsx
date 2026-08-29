@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { BookmarkPlus, ChevronRight, Download, GitFork, Loader2, Paperclip, SendHorizontal, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -23,7 +24,12 @@ import {
   uploadAttachment,
   type PendingAttachment,
 } from '@/lib/attachments-client'
-import { PromptLibrary } from '@/components/prompts/prompt-library'
+// Loaded on first open: the library is ~400 lines of dialog that most sessions
+// never touch, so its chunk should not sit in the chat panel's initial bundle.
+const PromptLibrary = dynamic(
+  () => import('@/components/prompts/prompt-library').then((m) => m.PromptLibrary),
+  { ssr: false },
+)
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,6 +68,8 @@ export function ChatPanel() {
   const [pendingQuestion, setPendingQuestion] = useState('')
   const [streamText, setStreamText] = useState('')
   const [libraryOpen, setLibraryOpen] = useState(false)
+  // Sticky: once opened, keep the component mounted so reopening is instant.
+  const [libraryLoaded, setLibraryLoaded] = useState(false)
   const [saveDraft, setSaveDraft] = useState<string | undefined>(undefined)
   const [attachments, setAttachments] = useState<PendingAttachment[]>([])
   const [dragOver, setDragOver] = useState(false)
@@ -228,11 +236,13 @@ export function ChatPanel() {
 
   function openLibrary() {
     setSaveDraft(undefined)
+    setLibraryLoaded(true)
     setLibraryOpen(true)
   }
 
   function saveDraftAsPrompt() {
     setSaveDraft(draft.trim())
+    setLibraryLoaded(true)
     setLibraryOpen(true)
   }
 
@@ -457,12 +467,14 @@ export function ChatPanel() {
         </div>
       </div>
 
-      <PromptLibrary
-        open={libraryOpen}
-        onOpenChange={setLibraryOpen}
-        onInsert={insertPrompt}
-        initialDraft={saveDraft}
-      />
+      {libraryLoaded && (
+        <PromptLibrary
+          open={libraryOpen}
+          onOpenChange={setLibraryOpen}
+          onInsert={insertPrompt}
+          initialDraft={saveDraft}
+        />
+      )}
     </div>
   )
 }
