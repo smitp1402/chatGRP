@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { ArrowRight, ArrowLeft, Check, GitBranch, Loader2, MessageSquareText, Share2 } from "lucide-react"
+import { ArrowRight, ArrowLeft, Check, GitBranch, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { MODELS, type ModelId } from "@chatgrp/shared"
 import { Logo } from "@/components/logo"
@@ -17,10 +17,9 @@ import { useMeStore } from "@/lib/stores/me-store"
 
 const ROLES = ["Engineer", "Researcher", "Product", "Founder", "Student", "Other"]
 
-const USE_CASES = [
+/** Welcome-screen highlight. Only claims we actually ship belong here. */
+const HIGHLIGHTS = [
   { id: "brainstorm", icon: GitBranch, title: "Branching brainstorms", desc: "Explore multiple directions from a single prompt without losing context." },
-  { id: "research", icon: MessageSquareText, title: "Deep research", desc: "Compare model answers side by side and keep every thread organized." },
-  { id: "collab", icon: Share2, title: "Team collaboration", desc: "Share conversation graphs with teammates as living documents." },
 ]
 
 const PROVIDER_DOT: Record<string, string> = {
@@ -29,7 +28,7 @@ const PROVIDER_DOT: Record<string, string> = {
   google: "var(--chart-4)",
 }
 
-const STEPS = ["Welcome", "About you", "Use case", "Default model"]
+const STEPS = ["Welcome", "About you", "Default model"]
 
 export function OnboardingFlow() {
   const router = useRouter()
@@ -37,7 +36,6 @@ export function OnboardingFlow() {
   const [step, setStep] = useState(0)
   const [name, setName] = useState("")
   const [role, setRole] = useState("")
-  const [useCase, setUseCase] = useState("")
   const [model, setModel] = useState<ModelId>("gpt-4o-mini")
   const [saving, setSaving] = useState(false)
 
@@ -54,8 +52,7 @@ export function OnboardingFlow() {
   const canAdvance =
     step === 0 ||
     (step === 1 && name.trim().length > 0 && role.length > 0) ||
-    (step === 2 && useCase.length > 0) ||
-    step === 3
+    step === 2
 
   async function finish() {
     setSaving(true)
@@ -146,7 +143,7 @@ export function OnboardingFlow() {
                   </p>
                 </div>
                 <ul className="flex flex-col gap-3">
-                  {USE_CASES.map((u) => (
+                  {HIGHLIGHTS.map((u) => (
                     <li key={u.id} className="flex items-start gap-3">
                       <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-card">
                         <u.icon className="size-4 text-primary" />
@@ -197,39 +194,6 @@ export function OnboardingFlow() {
             )}
 
             {step === 2 && (
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col gap-2">
-                  <h1 className="text-2xl font-semibold tracking-tight">What will you use ChatGRP for?</h1>
-                  <p className="leading-relaxed text-muted-foreground">
-                    Pick the one that fits best. You can do all of these later.
-                  </p>
-                </div>
-                <div className="flex flex-col gap-3">
-                  {USE_CASES.map((u) => (
-                    <button
-                      key={u.id}
-                      type="button"
-                      onClick={() => setUseCase(u.id)}
-                      className={cn(
-                        "flex items-start gap-3 rounded-lg border p-4 text-left transition-colors",
-                        useCase === u.id ? "border-primary bg-primary/5" : "border-border bg-card hover:border-muted-foreground/40",
-                      )}
-                    >
-                      <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background">
-                        <u.icon className="size-4 text-primary" />
-                      </span>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{u.title}</p>
-                        <p className="text-sm leading-relaxed text-muted-foreground">{u.desc}</p>
-                      </div>
-                      {useCase === u.id && <Check className="size-4 shrink-0 text-primary" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {step === 3 && (
               <div className="flex flex-col gap-6">
                 <div className="flex flex-col gap-2">
                   <h1 className="text-2xl font-semibold tracking-tight">Pick a default model</h1>

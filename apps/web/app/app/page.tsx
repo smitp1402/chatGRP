@@ -8,6 +8,7 @@ import { AppSidebar } from '@/components/app-sidebar'
 import { FlowCanvas } from '@/components/canvas/flow-canvas'
 import { ChatPanel } from '@/components/chat-panel'
 import { LayoutSwitcher } from '@/components/layout/layout-switcher'
+import { ShareButton } from '@/components/share-button'
 import { ResizableSplit } from '@/components/layout/resizable-split'
 import { createClient } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/stores/session-store'
@@ -79,7 +80,8 @@ export default function AppPage() {
       {cfg.sidebar && <AppSidebar />}
 
       <div className="relative flex-1">
-        <div className="absolute right-4 top-3 z-30">
+        <div className="absolute right-4 top-3 z-30 flex items-center gap-2">
+          {activeId && <ShareButton sessionId={activeId} />}
           <LayoutSwitcher />
         </div>
 

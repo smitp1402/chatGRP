@@ -25,9 +25,6 @@ export function MarketingNav() {
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <Button variant="ghost" size="sm" render={<Link href="/app" />} className="hidden sm:inline-flex">
-            Open app
-          </Button>
           <Button size="sm" render={<Link href="/signup" />}>
             Start for free
           </Button>
