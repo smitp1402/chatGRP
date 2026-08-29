@@ -12,15 +12,17 @@ export function getStripe(): Stripe {
   return client
 }
 
-export type PaidPlan = "pro" | "team"
+/** Plans that can be purchased today. Team is retired — see planForPrice. */
+export type PaidPlan = "pro"
 
 /** Stripe Price id for each paid plan (from env). */
 export function priceForPlan(plan: PaidPlan): string | undefined {
-  return plan === "pro" ? process.env.STRIPE_PRICE_PRO : process.env.STRIPE_PRICE_TEAM
+  return plan === "pro" ? process.env.STRIPE_PRICE_PRO : undefined
 }
 
 /** Reverse lookup: which plan a Stripe Price id maps to. */
-export function planForPrice(priceId: string | undefined): PaidPlan | null {
+// Still resolves "team" so any pre-existing Team subscription keeps working.
+export function planForPrice(priceId: string | undefined): "pro" | "team" | null {
   if (!priceId) return null
   if (priceId === process.env.STRIPE_PRICE_PRO) return "pro"
   if (priceId === process.env.STRIPE_PRICE_TEAM) return "team"

@@ -43,65 +43,48 @@ export const PLANS: Plan[] = [
     href: "/onboarding?plan=pro",
     featured: true,
   },
-  {
-    name: "Team",
-    price: "$30",
-    period: "/user/mo",
-    tagline: "For teams building together.",
-    credits: "40,000 credits / user",
-    features: [
-      "Everything in Pro",
-      "Shared team workspaces",
-      "Role-based access control",
-      "SSO & audit logs",
-      "Centralized billing",
-    ],
-    cta: "Start a team",
-    href: "/onboarding?plan=team",
-  },
 ]
 
 export type ComparisonRow = {
   label: string
   free: string | boolean
   pro: string | boolean
-  team: string | boolean
 }
 
 export const COMPARISON: { group: string; rows: ComparisonRow[] }[] = [
   {
     group: "Usage",
     rows: [
-      { label: "Monthly credits", free: "1,000", pro: "12,000", team: "40,000 / user" },
-      { label: "Active graphs", free: "3", pro: "Unlimited", team: "Unlimited" },
-      { label: "Nodes per graph", free: "50", pro: "Unlimited", team: "Unlimited" },
+      { label: "Monthly credits", free: "1,000", pro: "12,000" },
+      { label: "Active graphs", free: "3", pro: "Unlimited" },
+      { label: "Nodes per graph", free: "50", pro: "Unlimited" },
     ],
   },
   {
     group: "Models",
     rows: [
-      { label: "GPT-4o mini", free: true, pro: true, team: true },
-      { label: "GPT-4o", free: false, pro: true, team: true },
-      { label: "Claude 3.7 Sonnet", free: false, pro: true, team: true },
-      { label: "Gemini 2.0 Flash", free: false, pro: true, team: true },
-      { label: "Per-message model switching", free: false, pro: true, team: true },
+      { label: "GPT-4o mini", free: true, pro: true },
+      { label: "GPT-4o", free: false, pro: true },
+      { label: "Claude 3.7 Sonnet", free: false, pro: true },
+      { label: "Gemini 2.0 Flash", free: false, pro: true },
+      { label: "Per-message model switching", free: false, pro: true },
     ],
   },
   {
     group: "Collaboration",
     rows: [
-      { label: "Public share links", free: true, pro: true, team: true },
-      { label: "Shared workspaces", free: false, pro: false, team: true },
-      { label: "Role-based access", free: false, pro: false, team: true },
-      { label: "SSO & audit logs", free: false, pro: false, team: true },
+      { label: "Public share links", free: true, pro: true },
+      { label: "Shared workspaces", free: false, pro: false },
+      { label: "Role-based access", free: false, pro: false },
+      { label: "SSO & audit logs", free: false, pro: false },
     ],
   },
   {
     group: "Support",
     rows: [
-      { label: "Community support", free: true, pro: true, team: true },
-      { label: "Priority queue", free: false, pro: true, team: true },
-      { label: "Dedicated success manager", free: false, pro: false, team: true },
+      { label: "Community support", free: true, pro: true },
+      { label: "Priority queue", free: false, pro: true },
+      { label: "Dedicated success manager", free: false, pro: false },
     ],
   },
 ]
@@ -117,11 +100,11 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "What models are available on each plan?",
-    a: "Free includes GPT-4o mini. Pro and Team unlock all frontier models — GPT-4o, Claude 3.7 Sonnet, and Gemini 2.0 Flash — plus the ability to switch models per message inside a single graph.",
+    a: "Free includes GPT-4o mini. Pro unlocks all frontier models — GPT-4o, Claude 3.7 Sonnet, and Gemini 2.0 Flash — plus the ability to switch models per message inside a single graph.",
   },
   {
     q: "Is there a free trial?",
-    a: "The Free plan is free forever with 1,000 credits every month, so you can explore graph-based chat with no card required. Team plans include a 14-day trial of all collaboration features.",
+    a: "The Free plan is free forever with 1,000 credits every month, so you can explore graph-based chat with no card required.",
   },
   {
     q: "What happens when I run out of credits?",

@@ -48,13 +48,6 @@ const PLANS: PlanCard[] = [
     credits: '2,000 credits / mo',
     features: ['All 6 models', 'Unlimited sessions', 'Fork, export, prompt library', 'Custom layouts'],
   },
-  {
-    id: 'team',
-    name: 'Team',
-    price: '$30',
-    credits: '10,000 credits / mo',
-    features: ['Everything in Pro', 'Team prompt sharing', 'Priority support'],
-  },
 ]
 
 export default function BillingPage() {
@@ -77,7 +70,7 @@ export default function BillingPage() {
 
   const pct = creditsCap > 0 ? Math.round((creditsUsed / creditsCap) * 100) : 0
 
-  async function checkout(target: 'pro' | 'team') {
+  async function checkout(target: 'pro') {
     setBusy(target)
     try {
       await startCheckout(target)
@@ -271,7 +264,7 @@ function PlanButton({
   current: boolean
   userPlan: Plan
   busy: string | null
-  onCheckout: (p: 'pro' | 'team') => void
+  onCheckout: (p: 'pro') => void
   onPortal: () => void
 }) {
   if (current) {
@@ -290,7 +283,7 @@ function PlanButton({
       </Button>
     )
   }
-  const target = plan.id as 'pro' | 'team'
+  const target = plan.id as 'pro'
   return (
     <Button className="mt-5" size="sm" onClick={() => onCheckout(target)} disabled={busy !== null}>
       {busy === target ? <Loader2 className="size-4 animate-spin" /> : null}

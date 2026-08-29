@@ -6,7 +6,7 @@ import { PLANS } from "@/lib/pricing"
 
 export function PricingCards() {
   return (
-    <div className="grid gap-5 md:grid-cols-3">
+    <div className="mx-auto grid max-w-3xl gap-5 md:grid-cols-2">
       {PLANS.map((plan) => (
         <div
           key={plan.name}

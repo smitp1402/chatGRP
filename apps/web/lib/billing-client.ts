@@ -14,7 +14,7 @@ async function redirectTo(url: string, res: Response): Promise<never> {
 }
 
 /** Start a Stripe Checkout for a paid plan and redirect there. */
-export async function startCheckout(plan: "pro" | "team"): Promise<never> {
+export async function startCheckout(plan: "pro"): Promise<never> {
   const res = await fetch("/api/billing/checkout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

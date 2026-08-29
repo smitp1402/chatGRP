@@ -11,7 +11,7 @@ import { PricingFaq } from "@/components/pricing-faq"
 export const metadata: Metadata = {
   title: "Pricing — ChatGRP",
   description:
-    "Simple, credit-based pricing for graph-based AI chat. Compare Free, Pro, and Team plans and find the right fit.",
+    "Simple, credit-based pricing for graph-based AI chat. Compare Free and Pro and find the right fit.",
 }
 
 export default function PricingPage() {
@@ -44,7 +44,7 @@ export default function PricingPage() {
               Compare every feature
             </h2>
             <p className="mt-3 text-pretty text-muted-foreground">
-              A full breakdown of what&apos;s included in Free, Pro, and Team.
+              A full breakdown of what&apos;s included in Free and Pro.
             </p>
           </div>
           <PricingComparison />
