@@ -96,6 +96,9 @@ export default function AppPage() {
             title="No session selected"
             body="Create or pick a session in the sidebar to open its graph."
           />
+        ) : !cfg.canvas ? (
+          // Linear "Chat only": the open branch, full width, no branching.
+          <ChatPanel allowFork={false} />
         ) : cfg.chat ? (
           <ResizableSplit
             key={preset}

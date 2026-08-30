@@ -1,14 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { useTheme } from 'next-themes'
 import { Moon, Sun } from 'lucide-react'
+import { useMounted } from '@/lib/use-mounted'
 
 /** Compact light/dark toggle for tight spaces (e.g. the app sidebar footer). */
 export function ThemeCycle() {
   const { resolvedTheme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
+  const mounted = useMounted()
 
   // Avoid a hydration mismatch — reserve the space until mounted.
   if (!mounted) return <div className="size-8" />

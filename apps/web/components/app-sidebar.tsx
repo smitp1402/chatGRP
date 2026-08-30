@@ -247,28 +247,14 @@ function SessionItem({
   onCommitRename,
   onDelete,
 }: SessionItemProps) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [draft, setDraft] = useState(session.name)
-
-  useEffect(() => {
-    if (editing) {
-      setDraft(session.name)
-      requestAnimationFrame(() => inputRef.current?.select())
-    }
-  }, [editing, session.name])
-
+  // The rename field lives in its own component so entering edit mode mounts it
+  // fresh with the current name — no state to re-sync from an effect.
   if (editing) {
     return (
-      <input
-        ref={inputRef}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => onCommitRename(draft)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') onCommitRename(draft)
-          if (e.key === 'Escape') onCommitRename(session.name)
-        }}
-        className="mx-0 h-8 w-full rounded-lg border border-ring bg-background px-2 text-[13px] font-medium text-foreground focus:outline-none"
+      <RenameField
+        initial={session.name}
+        onCommit={onCommitRename}
+        onCancel={() => onCommitRename(session.name)}
       />
     )
   }
@@ -323,3 +309,36 @@ function SessionItem({
     </div>
   )
 }
+
+function RenameField({
+  initial,
+  onCommit,
+  onCancel,
+}: {
+  initial: string
+  onCommit: (name: string) => void
+  onCancel: () => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [draft, setDraft] = useState(initial)
+
+  // Selecting text is a DOM side effect, not a state update — effects are for this.
+  useEffect(() => {
+    inputRef.current?.select()
+  }, [])
+
+  return (
+    <input
+      ref={inputRef}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => onCommit(draft)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onCommit(draft)
+        if (e.key === 'Escape') onCancel()
+      }}
+      className="mx-0 h-8 w-full rounded-lg border border-ring bg-background px-2 text-[13px] font-medium text-foreground focus:outline-none"
+    />
+  )
+}
+

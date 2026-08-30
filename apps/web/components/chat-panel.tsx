@@ -49,7 +49,16 @@ const PROVIDER_DOT: Record<string, string> = {
   google: 'var(--chart-4)',
 }
 
-export function ChatPanel() {
+interface ChatPanelProps {
+  /**
+   * Whether branching is offered. False in the linear "Chat only" layout: with
+   * no canvas to see them on, sibling branches would silently disappear from
+   * the reader's view.
+   */
+  allowFork?: boolean
+}
+
+export function ChatPanel({ allowFork = true }: ChatPanelProps) {
   const activeId = useSessionStore((s) => s.activeId)
   const nodes = useCanvasStore((s) => s.nodes)
   const selectedId = useCanvasStore((s) => s.selectedId)
@@ -60,7 +69,7 @@ export function ChatPanel() {
   const defaultModelId = useMeStore((s) => s.defaultModelId)
 
   const availableModels = modelsForPlan(plan)
-  const [model, setModel] = useState<ModelId>('gpt-4o-mini')
+  const [pickedModel, setModel] = useState<ModelId>('gpt-4o-mini')
   const appliedDefault = useRef(false)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
@@ -78,6 +87,14 @@ export function ChatPanel() {
 
   const branch = pathToRoot(nodes, selectedId)
   const crumbs = breadcrumbFor(nodes, selectedId)
+  // A downgrade can strand the picked model outside the plan. Correct it while
+  // rendering rather than in an effect, so no message is ever sent with a model
+  // the user cannot use.
+  const model =
+    availableModels.length === 0 || availableModels.some((m) => m.id === pickedModel)
+      ? pickedModel
+      : availableModels[0].id
+
   const activeModel = modelById(model)
 
   useEffect(() => {
@@ -96,12 +113,6 @@ export function ChatPanel() {
     }
   }, [defaultModelId, availableModels])
 
-  // If the current model isn't available on the user's plan, fall back.
-  useEffect(() => {
-    if (availableModels.length > 0 && !availableModels.some((m) => m.id === model)) {
-      setModel(availableModels[0].id)
-    }
-  }, [availableModels, model])
 
   /** Screen picked files, then upload each one in the background. */
   async function addFiles(files: File[]) {
@@ -185,7 +196,7 @@ export function ChatPanel() {
         message,
         modelId: model,
         parentId,
-        isFork: forking,
+        isFork: allowFork && forking,
         attachments: uploaded,
       },
       {
@@ -199,7 +210,7 @@ export function ChatPanel() {
             // as the earliest message_sent per identified user.
             isFirstInSession: nodes.length === 0,
           })
-          if (forking) track(ANALYTICS_EVENTS.nodeForked, { modelId: model })
+          if (allowFork && forking) track(ANALYTICS_EVENTS.nodeForked, { modelId: model })
           sent.forEach(releasePending)
           await loadNodes(activeId)
           void loadMe()
@@ -346,6 +357,7 @@ export function ChatPanel() {
 
           {selectedId && (
             <>
+              {allowFork && (
               <button
                 type="button"
                 onClick={() => setForking((v) => !v)}
@@ -361,6 +373,7 @@ export function ChatPanel() {
                 <GitFork className="size-3.5" />
                 Fork
               </button>
+              )}
               <button
                 type="button"
                 onClick={exportBranch}
@@ -373,7 +386,7 @@ export function ChatPanel() {
           )}
         </div>
 
-        {forking && (
+        {allowFork && forking && (
           <p className="mb-2 rounded-md bg-node-fork/10 px-2 py-1 text-[11px] text-node-fork">
             Forking — your next message starts a new sibling branch.
           </p>

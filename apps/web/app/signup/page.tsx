@@ -1,12 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { AuthShell } from "@/components/auth-shell"
 import { ANALYTICS_EVENTS, track } from "@/lib/analytics"
+import { useMounted } from "@/lib/use-mounted"
 import { GoogleButton } from "@/components/google-button"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -29,11 +30,11 @@ export default function SignupPage() {
 
   // Set when the visitor arrived from a shared graph's Fork button, so the
   // page explains why they are being asked to sign up. Read from window rather
-  // than useSearchParams, which would force a Suspense boundary on this page.
-  const [forking, setForking] = useState(false)
-  useEffect(() => {
-    setForking(new URLSearchParams(window.location.search).get("fork") === "1")
-  }, [])
+  // than useSearchParams, which would force a Suspense boundary on this page —
+  // and gated on `mounted` because window does not exist while server-rendering.
+  const mounted = useMounted()
+  const forking =
+    mounted && new URLSearchParams(window.location.search).get("fork") === "1"
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

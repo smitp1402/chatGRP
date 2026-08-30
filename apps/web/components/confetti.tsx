@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useMemo } from "react"
 import { motion } from "framer-motion"
 
 const COLORS = [
@@ -22,26 +22,35 @@ type Piece = {
   rounded: boolean
 }
 
+/**
+ * Deterministic pseudo-random in [0, 1) from an integer seed.
+ *
+ * Confetti needs pieces that *look* unrelated, not true randomness. Deriving
+ * them from the index keeps the render pure and makes server and client agree,
+ * so there is no hydration mismatch to guard against in the first place.
+ */
+function scatter(seed: number): number {
+  const x = Math.sin(seed * 12.9898) * 43758.5453
+  return x - Math.floor(x)
+}
+
 /** A one-shot confetti burst that falls from the top of the viewport. */
 export function Confetti({ count = 90 }: { count?: number }) {
-  const [pieces, setPieces] = useState<Piece[]>([])
-
-  // Generate randomized pieces only on the client to avoid SSR hydration mismatch.
-  useEffect(() => {
-    setPieces(
+  const pieces: Piece[] = useMemo(
+    () =>
       Array.from({ length: count }, (_, i) => ({
         id: i,
-        left: Math.random() * 100,
+        left: scatter(i) * 100,
         color: COLORS[i % COLORS.length],
-        delay: Math.random() * 0.5,
-        duration: 2.4 + Math.random() * 1.6,
-        rotate: Math.random() * 360,
-        drift: (Math.random() - 0.5) * 160,
-        size: 6 + Math.random() * 6,
-        rounded: Math.random() > 0.5,
+        delay: scatter(i + 101) * 0.5,
+        duration: 2.4 + scatter(i + 211) * 1.6,
+        rotate: scatter(i + 307) * 360,
+        drift: (scatter(i + 419) - 0.5) * 160,
+        size: 6 + scatter(i + 523) * 6,
+        rounded: scatter(i + 631) > 0.5,
       })),
-    )
-  }, [count])
+    [count],
+  )
 
   if (pieces.length === 0) return null
 

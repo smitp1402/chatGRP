@@ -15,7 +15,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { cn } from '@/lib/utils'
 import { usePromptStore } from '@/lib/stores/prompt-store'
 import { STARTER_PROMPTS } from '@/lib/starter-prompts'
 
@@ -39,11 +38,14 @@ export function PromptLibrary({ open, onOpenChange, onInsert, initialDraft }: Pr
     if (open) void load()
   }, [open, load])
 
-  // Opening with a draft jumps straight to a new-prompt editor.
-  useEffect(() => {
-    if (open && initialDraft) setView({ mode: 'edit', prompt: null })
-    else if (open) setView({ mode: 'list' })
-  }, [open, initialDraft])
+  // Opening with a draft jumps straight to a new-prompt editor. Adjusting state
+  // during render (React's documented pattern for "reset when a prop changes")
+  // rather than in an effect, which would render the stale view for one frame.
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open) setView(initialDraft ? { mode: 'edit', prompt: null } : { mode: 'list' })
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()

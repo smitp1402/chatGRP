@@ -1,0 +1,88 @@
+name: Deploy AI service
+
+# The web app deploys through Vercel's own Git integration. This workflow is
+# only the FastAPI service, which had no automated deploy at all — it was
+# `gcloud run deploy` by hand.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/ai/**'
+      - '.github/workflows/deploy-ai.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-ai
+  cancel-in-progress: false # never interrupt a deploy mid-flight
+
+permissions:
+  contents: read
+  id-token: write # required for Workload Identity Federation
+
+env:
+  PROJECT_ID: chatgrp-ai-prod
+  REGION: us-central1
+  SERVICE: chatgrp-ai
+  REPOSITORY: chatgrp
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Workload Identity Federation, not a service-account JSON key: GitHub
+      # mints a short-lived token per run, so there is no long-lived credential
+      # to leak or rotate.
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      # Tagged with the commit SHA so a rollback names an exact revision.
+      - name: Build and push
+        working-directory: apps/ai
+        run: |
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE}:${GITHUB_SHA}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        run: |
+          gcloud run deploy "$SERVICE" \
+            --image "$IMAGE" \
+            --region "$REGION" \
+            --platform managed \
+            --allow-unauthenticated \
+            --quiet
+          echo "url=$(gcloud run services describe "$SERVICE" \
+            --region "$REGION" --format='value(status.url)')" >> "$GITHUB_OUTPUT"
+
+      # The service has no test suite, so this is the only proof the container
+      # actually boots rather than merely building. A failure here fails the run
+      # loudly instead of leaving a dead revision serving traffic.
+      - name: Health check
+        run: |
+          URL="${{ steps.deploy.outputs.url }}/health"
+          echo "Probing $URL"
+          for i in 1 2 3 4 5; do
+            if curl -fsS --max-time 10 "$URL" | tee /tmp/health | grep -q '"ok":true'; then
+              echo "Healthy."
+              exit 0
+            fi
+            echo "Attempt $i failed; retrying in 6s"
+            sleep 6
+          done
+          echo "Service did not report healthy. Last response:"
+          cat /tmp/health || true
+          echo "Roll back with:"
+          echo "  gcloud run services update-traffic $SERVICE --region $REGION --to-revisions=PREVIOUS_REVISION=100"
+          exit 1

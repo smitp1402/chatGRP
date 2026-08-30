@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { LAYOUT_PRESETS, useLayoutStore, type PresetId } from '@/lib/stores/layout-store'
 
-const ORDER: PresetId[] = ['split', 'canvas', 'chat', 'zen']
+const ORDER: PresetId[] = ['split', 'canvas', 'chat', 'linear', 'zen']
 
 export function LayoutSwitcher() {
   const preset = useLayoutStore((s) => s.preset)

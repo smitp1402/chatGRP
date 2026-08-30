@@ -19,7 +19,7 @@ interface PromptState {
 }
 
 /** Prompt library state. All list updates are immutable. */
-export const usePromptStore = create<PromptState>((set, get) => ({
+export const usePromptStore = create<PromptState>((set) => ({
   prompts: [],
   folders: [],
   loading: false,
