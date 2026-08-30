@@ -35,6 +35,8 @@ interface FlowCanvasProps {
   onToggleStar: (id: string) => void
   onToggleCollapse: (id: string) => void
   onDeleteNode: (id: string) => void
+  /** Public share view: no dragging, no star/delete controls. */
+  readOnly?: boolean
 }
 
 function Canvas({
@@ -45,6 +47,7 @@ function Canvas({
   onToggleStar,
   onToggleCollapse,
   onDeleteNode,
+  readOnly = false,
 }: FlowCanvasProps) {
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState<Node>([])
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState<Edge>([])
@@ -72,13 +75,15 @@ function Canvas({
             starred: n.starred,
             collapsed: n.collapsed,
             childCount: childCount(nodes, n.id),
+            attachmentCount: n.attachments.length,
+            readOnly,
             onToggleStar,
             onToggleCollapse,
             onDelete: onDeleteNode,
           } satisfies GraphNodeData,
         })),
     )
-  }, [nodes, hidden, layout, selectedId, onToggleStar, onToggleCollapse, onDeleteNode, setRfNodes])
+  }, [nodes, hidden, layout, selectedId, readOnly, onToggleStar, onToggleCollapse, onDeleteNode, setRfNodes])
 
   useEffect(() => {
     setRfEdges(
@@ -100,8 +105,10 @@ function Canvas({
   }, [nodes, hidden, setRfEdges])
 
   const onNodeClick: NodeMouseHandler = (_e, node) => onSelect(node.id)
-  const onNodeDragStop: OnNodeDrag = (_e, node) =>
+  const onNodeDragStop: OnNodeDrag = (_e, node) => {
+    if (readOnly) return
     onMoveNode(node.id, node.position.x, node.position.y)
+  }
 
   function runSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -131,6 +138,7 @@ function Canvas({
       onEdgesChange={onEdgesChange}
       onNodeClick={onNodeClick}
       onNodeDragStop={onNodeDragStop}
+      nodesDraggable={!readOnly}
       fitView
       fitViewOptions={{ padding: 0.3, maxZoom: 1 }}
       minZoom={0.3}

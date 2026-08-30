@@ -1,29 +1,9 @@
 import { createClient } from "@/lib/supabase/server"
 import { ok, fail, getUserId } from "@/lib/api-response"
+import { NODE_SELECT, toCanvasNodes, type NodeWithJoins } from "@/lib/canvas-node"
 import { CREDIT_TABLE, type CanvasNode, type ModelId } from "@chatgrp/shared"
 
 type Params = { params: Promise<{ id: string }> }
-
-interface MessageJoin {
-  role: "user" | "assistant"
-  content: string
-}
-interface AttemptJoin {
-  model_id: string
-  status: string
-}
-interface NodeWithJoins {
-  id: string
-  parent_id: string | null
-  is_fork: boolean
-  starred: boolean
-  collapsed: boolean
-  position_x: number
-  position_y: number
-  order_index: number
-  messages: MessageJoin[] | null
-  generation_attempts: AttemptJoin[] | null
-}
 
 /** GET /api/sessions/:id/nodes — all nodes for a session as canvas view models. */
 export async function GET(_request: Request, { params }: Params) {
@@ -34,41 +14,13 @@ export async function GET(_request: Request, { params }: Params) {
 
   const { data, error } = await supabase
     .from("nodes")
-    .select(
-      "id, parent_id, is_fork, starred, collapsed, position_x, position_y, order_index, " +
-        "messages(role, content), generation_attempts(model_id, status)",
-    )
+    .select(NODE_SELECT)
     .eq("session_id", sessionId)
     .order("order_index", { ascending: true })
 
   if (error) return fail(error.message, 500)
 
-  const rows = (data ?? []) as unknown as NodeWithJoins[]
-
-  const nodes: CanvasNode[] = rows.map((n) => {
-    const messages = n.messages ?? []
-    const attempts = n.generation_attempts ?? []
-    const question = messages.find((m) => m.role === "user")?.content ?? ""
-    const answer = messages.find((m) => m.role === "assistant")?.content ?? ""
-    const modelId = (attempts.find((a) => a.status === "completed")?.model_id ??
-      attempts[0]?.model_id ??
-      null) as ModelId | null
-    return {
-      id: n.id,
-      parentId: n.parent_id ?? null,
-      isFork: n.is_fork,
-      starred: n.starred,
-      collapsed: n.collapsed,
-      question,
-      answer,
-      modelId,
-      credits: modelId ? (CREDIT_TABLE[modelId] ?? 0) : 0,
-      x: n.position_x,
-      y: n.position_y,
-    }
-  })
-
-  return ok(nodes)
+  return ok(toCanvasNodes((data ?? []) as unknown as NodeWithJoins[]))
 }
 
 interface CreateNodeBody {
@@ -143,6 +95,7 @@ export async function POST(request: Request, { params }: Params) {
     answer,
     modelId,
     credits: CREDIT_TABLE[modelId] ?? 0,
+    attachments: [],  // dev-seeded nodes carry no files
     x: 0,
     y: 0,
   }

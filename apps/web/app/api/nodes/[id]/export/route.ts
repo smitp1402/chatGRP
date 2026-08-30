@@ -10,6 +10,7 @@ interface NodeRow {
   session_id: string
 }
 interface MessageRow {
+  id: string
   node_id: string
   role: "user" | "assistant"
   content: string
@@ -53,10 +54,27 @@ export async function GET(_request: Request, { params }: Params) {
 
   const { data: msgData } = await supabase
     .from("messages")
-    .select("node_id, role, content, created_at")
+    .select("id, node_id, role, content, created_at")
     .in("node_id", path)
     .order("created_at", { ascending: true })
   const messages = (msgData ?? []) as MessageRow[]
+
+  // File names per user message, so an export records what was attached even
+  // though the markdown cannot carry the files themselves.
+  const { data: attachmentRows } = await supabase
+    .from("attachments")
+    .select("message_id, file_name")
+    .in(
+      "message_id",
+      messages.filter((m) => m.role === "user").map((m) => m.id),
+    )
+  const filesByMessage = new Map<string, string[]>()
+  for (const row of (attachmentRows ?? []) as { message_id: string; file_name: string }[]) {
+    filesByMessage.set(row.message_id, [
+      ...(filesByMessage.get(row.message_id) ?? []),
+      row.file_name,
+    ])
+  }
 
   const { data: session } = await supabase
     .from("sessions")
@@ -90,13 +108,16 @@ export async function GET(_request: Request, { params }: Params) {
   ]
 
   for (const nid of path) {
-    const user = messages.find((m) => m.node_id === nid && m.role === "user")?.content ?? ""
+    const userMessage = messages.find((m) => m.node_id === nid && m.role === "user")
+    const user = userMessage?.content ?? ""
     const assistant =
       messages.find((m) => m.node_id === nid && m.role === "assistant")?.content ?? ""
     const modelId = modelByNode.get(nid) as ModelId | undefined
     const modelName = modelId ? modelById(modelId)?.name : undefined
+    const files = userMessage ? (filesByMessage.get(userMessage.id) ?? []) : []
 
     lines.push(`### 🧑 ${user}`, "")
+    if (files.length > 0) lines.push(`📎 _Attached: ${files.join(", ")}_`, "")
     if (assistant) {
       lines.push(assistant, "")
       if (modelName) lines.push(`_— ${modelName}_`, "")

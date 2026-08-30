@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   if (!user) return fail("Unauthorized", 401)
 
   const body = (await request.json().catch(() => ({}))) as { plan?: PaidPlan }
-  if (body.plan !== "pro" && body.plan !== "team") return fail("Invalid plan", 422)
+  if (body.plan !== "pro") return fail("Invalid plan", 422)
 
   const price = priceForPlan(body.plan)
   if (!price) return fail("Plan price not configured on the server", 500)

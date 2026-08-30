@@ -1,3 +1,4 @@
+import type { AttachmentKind } from "./attachments"
 import type { ModelId } from "./credits"
 
 /** A row in the `sessions` table. */
@@ -52,6 +53,17 @@ export interface CanvasNode {
   answer: string
   modelId: ModelId | null
   credits: number
+  /** Files sent with the question, for thumbnails on the node. */
+  attachments: CanvasAttachment[]
   x: number
   y: number
+}
+
+/** The subset of an attachment the canvas needs to render a thumbnail. */
+export interface CanvasAttachment {
+  id: string
+  storagePath: string
+  fileName: string
+  mimeType: string
+  kind: AttachmentKind
 }

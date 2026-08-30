@@ -4,6 +4,7 @@ import { Check, LayoutGrid } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -11,7 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { LAYOUT_PRESETS, useLayoutStore, type PresetId } from '@/lib/stores/layout-store'
 
-const ORDER: PresetId[] = ['split', 'canvas', 'chat', 'zen']
+const ORDER: PresetId[] = ['split', 'canvas', 'chat', 'linear', 'zen']
 
 export function LayoutSwitcher() {
   const preset = useLayoutStore((s) => s.preset)
@@ -27,14 +28,17 @@ export function LayoutSwitcher() {
         {LAYOUT_PRESETS[preset].label}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuLabel>Layout</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {ORDER.map((id) => (
-          <DropdownMenuItem key={id} onClick={() => setPreset(id)}>
-            <span className="flex-1">{LAYOUT_PRESETS[id].label}</span>
-            {preset === id && <Check className="size-3.5 text-primary" />}
-          </DropdownMenuItem>
-        ))}
+        {/* Base UI's GroupLabel needs a Group ancestor — without it the menu throws. */}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Layout</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {ORDER.map((id) => (
+            <DropdownMenuItem key={id} onClick={() => setPreset(id)}>
+              <span className="flex-1">{LAYOUT_PRESETS[id].label}</span>
+              {preset === id && <Check className="size-3.5 text-primary" />}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   )

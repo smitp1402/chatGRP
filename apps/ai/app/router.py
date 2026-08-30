@@ -1,9 +1,14 @@
 """Model router — turns a model_id + messages into a stream of text chunks.
 
+Messages arrive as {"role", "content"} with an optional "images" list of
+{"mime", "data" (base64), "name"}. Each provider takes multimodal input in its
+own shape, so every adapter below converts before calling out.
+
 Falls back to the free mock streamer when USE_MOCK_AI is true or the relevant
 provider key is missing, so development never requires paid keys.
 """
 import asyncio
+import base64
 from collections.abc import AsyncIterator
 
 from .config import settings
@@ -39,8 +44,16 @@ async def _mock(model_id: str, messages: list[dict], note: str = "") -> AsyncIte
     last = messages[-1]["content"] if messages else ""
     prior = max(len(messages) - 1, 0)
     suffix = f" ({note})" if note else ""
+    images = messages[-1].get("images", []) if messages else []
+    seen = (
+        f" Received {len(images)} image(s): "
+        + ", ".join(i.get("name", "image") for i in images)
+        + "."
+        if images
+        else ""
+    )
     reply = (
-        f"(mock · {model_id}{suffix}) Considering {prior} prior message(s) in this branch. "
+        f"(mock · {model_id}{suffix}) Considering {prior} prior message(s) in this branch.{seen} "
         f'You asked: "{last}". Set USE_MOCK_AI=false with a provider key for real answers.'
     )
     for word in reply.split(" "):
@@ -53,7 +66,7 @@ async def _openai(model: str, messages: list[dict]) -> AsyncIterator[str]:
 
     client = AsyncOpenAI(api_key=settings.openai_api_key)
     stream = await client.chat.completions.create(
-        model=model, messages=messages, stream=True
+        model=model, messages=_openai_messages(messages), stream=True
     )
     async for chunk in stream:
         delta = chunk.choices[0].delta.content
@@ -61,13 +74,56 @@ async def _openai(model: str, messages: list[dict]) -> AsyncIterator[str]:
             yield delta
 
 
+def _openai_messages(messages: list[dict]) -> list[dict]:
+    """OpenAI takes content as a list of {type: text|image_url} parts."""
+    out: list[dict] = []
+    for m in messages:
+        images = m.get("images")
+        if not images:
+            out.append({"role": m["role"], "content": m["content"]})
+            continue
+        parts: list[dict] = [{"type": "text", "text": m["content"]}]
+        parts += [
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:{i['mime']};base64,{i['data']}"},
+            }
+            for i in images
+        ]
+        out.append({"role": m["role"], "content": parts})
+    return out
+
+
 async def _anthropic(model: str, messages: list[dict]) -> AsyncIterator[str]:
     from anthropic import AsyncAnthropic
 
     client = AsyncAnthropic(api_key=settings.anthropic_api_key)
-    async with client.messages.stream(model=model, max_tokens=1024, messages=messages) as stream:
+    async with client.messages.stream(
+        model=model, max_tokens=1024, messages=_anthropic_messages(messages)
+    ) as stream:
         async for text in stream.text_stream:
             yield text
+
+
+def _anthropic_messages(messages: list[dict]) -> list[dict]:
+    """Anthropic takes content blocks with base64 image sources."""
+    out: list[dict] = []
+    for m in messages:
+        images = m.get("images")
+        if not images:
+            out.append({"role": m["role"], "content": m["content"]})
+            continue
+        blocks: list[dict] = [
+            {
+                "type": "image",
+                "source": {"type": "base64", "media_type": i["mime"], "data": i["data"]},
+            }
+            for i in images
+        ]
+        # Anthropic reads images best when they precede the question about them.
+        blocks.append({"type": "text", "text": m["content"]})
+        out.append({"role": m["role"], "content": blocks})
+    return out
 
 
 async def _google(model: str, messages: list[dict]) -> AsyncIterator[str]:
@@ -75,10 +131,17 @@ async def _google(model: str, messages: list[dict]) -> AsyncIterator[str]:
 
     genai.configure(api_key=settings.google_api_key)
     gmodel = genai.GenerativeModel(model)
-    contents = [
-        {"role": "user" if m["role"] == "user" else "model", "parts": [m["content"]]}
-        for m in messages
-    ]
+    contents = []
+    for m in messages:
+        parts: list = [m["content"]]
+        # Gemini takes inline image blobs alongside the text part.
+        parts += [
+            {"mime_type": i["mime"], "data": base64.b64decode(i["data"])}
+            for i in m.get("images", [])
+        ]
+        contents.append(
+            {"role": "user" if m["role"] == "user" else "model", "parts": parts}
+        )
     response = await gmodel.generate_content_async(contents, stream=True)
     async for chunk in response:
         if chunk.text:

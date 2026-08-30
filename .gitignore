@@ -42,5 +42,13 @@ STUDY_GUIDE.md
 # secrets / credentials that must never be committed
 supabase_password.txt
 *password*.txt
+client_secret_*.json
+*.apps.googleusercontent.com.json
+*-service-account*.json
 *.pem
 *.key
+
+.vercel
+
+# Supabase CLI scratch
+supabase/.temp/

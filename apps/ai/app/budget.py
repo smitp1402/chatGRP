@@ -3,7 +3,12 @@
 We avoid a per-provider tokenizer and use a ~4 chars/token heuristic. If the
 context exceeds the input cap, the oldest message pairs are dropped first while
 the root pair is always preserved (branch origin stays in context).
+
+Attached images are not text, so they are charged a flat per-image estimate
+(see IMAGE_TOKEN_ESTIMATE). Providers bill images by tile count; the constant is
+deliberately pessimistic so we never under-charge a user's credits.
 """
+from .attachments import IMAGE_TOKEN_ESTIMATE
 from .config import settings
 
 
@@ -11,8 +16,15 @@ def approx_tokens(text: str) -> int:
     return (len(text) + 3) // 4
 
 
+def message_tokens(message: dict) -> int:
+    """Text tokens plus a flat estimate for each attached image."""
+    return approx_tokens(message["content"]) + IMAGE_TOKEN_ESTIMATE * len(
+        message.get("images", [])
+    )
+
+
 def total_tokens(messages: list[dict]) -> int:
-    return sum(approx_tokens(m["content"]) for m in messages)
+    return sum(message_tokens(m) for m in messages)
 
 
 def enforce_budget(messages: list[dict]) -> list[dict]:

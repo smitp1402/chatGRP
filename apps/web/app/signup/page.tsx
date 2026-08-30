@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { AuthShell } from "@/components/auth-shell"
+import { ANALYTICS_EVENTS, track } from "@/lib/analytics"
+import { useMounted } from "@/lib/use-mounted"
 import { GoogleButton } from "@/components/google-button"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -26,6 +28,14 @@ export default function SignupPage() {
   const mismatch = confirm.length > 0 && confirm !== password
   const canSubmit = name && email && password && confirm && !mismatch && agreed
 
+  // Set when the visitor arrived from a shared graph's Fork button, so the
+  // page explains why they are being asked to sign up. Read from window rather
+  // than useSearchParams, which would force a Suspense boundary on this page —
+  // and gated on `mounted` because window does not exist while server-rendering.
+  const mounted = useMounted()
+  const forking =
+    mounted && new URLSearchParams(window.location.search).get("fork") === "1"
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!canSubmit) return
@@ -44,6 +54,7 @@ export default function SignupPage() {
       toast.error(error.message)
       return
     }
+    track(ANALYTICS_EVENTS.signedUp, { method: "email" })
     // The verify page needs the address to show it back and to power "resend".
     router.push(`/verify-email?email=${encodeURIComponent(email)}`)
   }
@@ -51,9 +62,13 @@ export default function SignupPage() {
   return (
     <AuthShell>
       <div className="mb-6 flex flex-col items-center text-center">
-        <h1 className="text-xl font-semibold tracking-tight">Create your account</h1>
+        <h1 className="text-xl font-semibold tracking-tight">
+          {forking ? "Create an account to fork" : "Create your account"}
+        </h1>
         <p className="mt-2 leading-relaxed text-muted-foreground">
-          Start mapping conversations as graphs.
+          {forking
+            ? "The shared graph will be copied into your account as soon as you are in."
+            : "Start mapping conversations as graphs."}
         </p>
       </div>
 

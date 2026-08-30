@@ -130,23 +130,20 @@ export default function SearchPage() {
   const router = useRouter()
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState<Filter>("all")
-  const [loading, setLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     inputRef.current?.focus()
   }, [])
 
-  // Simulate async search whenever the query changes.
+  // Simulate async search: the debounce settles behind the live query, and
+  // `loading` is derived from the gap. State changes only inside the timer.
+  const [settledQuery, setSettledQuery] = useState('')
   useEffect(() => {
-    if (query.trim().length === 0) {
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    const t = setTimeout(() => setLoading(false), 450)
+    const t = setTimeout(() => setSettledQuery(query), 450)
     return () => clearTimeout(t)
   }, [query])
+  const loading = query.trim().length > 0 && settledQuery !== query
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()

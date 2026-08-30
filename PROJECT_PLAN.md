@@ -2,6 +2,14 @@
 
 > Generated from PRD review (ChatGRP_PRD_v5.docx) on 2026-07-11
 
+## 0. Links
+
+| What | URL |
+|------|-----|
+| Architecture diagrams | https://claude.ai/code/artifact/7ed2605c-97ee-421b-88ea-c7079204f429 |
+| AI backend (Cloud Run) | https://chatgrp-ai-589866597263.us-central1.run.app |
+| Web (Vercel) | project `chatgrp` — public URL not yet recorded here |
+
 ## 1. Product Overview
 
 ### Vision
@@ -79,7 +87,7 @@ flowchart TD
   end
 
   UI -->|REST CRUD| NEXT["Next.js API Routes (Vercel)"]
-  UI -->|SSE stream| FAST["FastAPI AI layer (Railway) — apps/ai"]
+  UI -->|SSE stream| FAST["FastAPI AI layer (GCP Cloud Run) — apps/ai"]
   SB -->|JWT| UI
 
   NEXT -->|"service role"| DB[("Supabase Postgres — RLS")]
@@ -208,7 +216,7 @@ RLS policy pattern: every table with `user_id` gets a policy `user_id = auth.uid
 | State | Zustand | PRD-specified; lightweight, good fit for canvas + panel state |
 | Styling | Tailwind CSS + Shadcn/ui | PRD-specified; already used by the v0 UI |
 | Non-AI backend | Next.js API Routes on Vercel | Co-located with frontend; owns CRUD/auth/Stripe |
-| AI backend | FastAPI on Railway | Best Python AI SDK ecosystem; isolates streaming/model-routing from CRUD |
+| AI backend | FastAPI on GCP Cloud Run | Best Python AI SDK ecosystem; isolates streaming/model-routing from CRUD; scales to zero (pay-per-use) and handles SSE |
 | Database | Supabase Postgres (+ RLS) | Single source of truth; RLS enforces per-user isolation |
 | Cache | Upstash Redis | Rate limiting only |
 | Auth | Supabase Auth (email + Google OAuth) | PRD-specified; JWT verifiable in both backends |
@@ -257,7 +265,9 @@ RLS policy pattern: every table with `user_id` gets a policy `user_id = auth.uid
 Ship phase-by-phase to a live URL (see Deployment). After launch, watch the success metrics (§8 / PRD §11): free→pro conversion, avg nodes/session, session length, churn, p95 latency. Recalibrate the credit table against **real** usage after 30 days.
 
 ### Deployment Strategy
-**Early "walking skeleton" deploy after Phase 0.** Wire Vercel (web) + Railway (ai) + Supabase + Stripe test mode + Cloudflare immediately, deploy a trivial authenticated app, then every subsequent phase ships to the real URL. This surfaces cross-service auth, CORS, and SSE-through-proxy issues early rather than at launch. CI/CD: GitHub → Vercel (auto) + Railway (auto on push); Supabase migrations via CLI in CI.
+**Early "walking skeleton" deploy after Phase 0.** Wire Vercel (web) + GCP Cloud Run (ai) + Supabase + Stripe test mode + Cloudflare immediately, deploy a trivial authenticated app, then every subsequent phase ships to the real URL. This surfaces cross-service auth, CORS, and SSE-through-proxy issues early rather than at launch. CI/CD: GitHub → Vercel (auto) + Cloud Run (via `gcloud run deploy --source`); Supabase migrations via CLI in CI.
+
+> **Update (2026-08-17):** AI backend host switched from Railway to **GCP Cloud Run** (project `chatgrp-ai-prod`, service `chatgrp-ai`, region `us-central1`). Rationale: scales to zero (near-free at low traffic) and consolidates with the Google Cloud already used for OAuth. Deployed via a `Dockerfile` in `apps/ai`. Live URL: `https://chatgrp-ai-589866597263.us-central1.run.app`. Cost tables below still reference Railway's flat pricing and are now conservative upper bounds.
 
 ---
 
@@ -328,7 +338,7 @@ chatgrp/
 - [ ] FastAPI skeleton in `apps/ai` with `/health` + Supabase JWT verify
 - [ ] Supabase project; all 9 tables + RLS migrations; seed starter prompt pack
 - [ ] Supabase Auth (email + Google OAuth) wired to v0 login/signup pages
-- [ ] Deploy skeleton: Vercel (web) + Railway (ai) + Cloudflare + Stripe test keys
+- [ ] Deploy skeleton: Vercel (web) + GCP Cloud Run (ai) + Cloudflare + Stripe test keys
 - [ ] `packages/shared` scaffolding (model registry, credit table, API types)
 
 **Key Tasks:**

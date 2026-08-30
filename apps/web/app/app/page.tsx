@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Network } from 'lucide-react'
@@ -8,6 +8,8 @@ import { AppSidebar } from '@/components/app-sidebar'
 import { FlowCanvas } from '@/components/canvas/flow-canvas'
 import { ChatPanel } from '@/components/chat-panel'
 import { LayoutSwitcher } from '@/components/layout/layout-switcher'
+import { ShareButton } from '@/components/share-button'
+import { ForkResumer } from '@/components/fork-resumer'
 import { ResizableSplit } from '@/components/layout/resizable-split'
 import { createClient } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/stores/session-store'
@@ -76,10 +78,16 @@ export default function AppPage() {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
+      {/* Completes a fork started from a share link; useSearchParams needs a boundary. */}
+      <Suspense fallback={null}>
+        <ForkResumer />
+      </Suspense>
+
       {cfg.sidebar && <AppSidebar />}
 
       <div className="relative flex-1">
-        <div className="absolute right-4 top-3 z-30">
+        <div className="absolute right-4 top-3 z-30 flex items-center gap-2">
+          {activeId && <ShareButton sessionId={activeId} />}
           <LayoutSwitcher />
         </div>
 
@@ -88,6 +96,9 @@ export default function AppPage() {
             title="No session selected"
             body="Create or pick a session in the sidebar to open its graph."
           />
+        ) : !cfg.canvas ? (
+          // Linear "Chat only": the open branch, full width, no branching.
+          <ChatPanel allowFork={false} />
         ) : cfg.chat ? (
           <ResizableSplit
             key={preset}

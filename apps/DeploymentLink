@@ -1,0 +1,9 @@
+
+Full picture:
+- Frontend: https://web-one-peach-86.vercel.app (Vercel project web)
+- Backend: https://chatgrp-ai-589866597263.us-central1.run.app (Cloud Run chatgrp-ai, us-central1)
+
+
+
+pnpm dev:web    # :3000
+pnpm dev:ai     # :8000

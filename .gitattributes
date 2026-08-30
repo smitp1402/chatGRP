@@ -1,0 +1,8 @@
+# Shell scripts must keep LF endings. Git's autocrlf would hand a fresh clone
+# CRLF, and bash then fails on the trailing \r with a confusing error.
+*.sh text eol=lf
+
+# Same reasoning for anything a Linux runner or container executes verbatim.
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf

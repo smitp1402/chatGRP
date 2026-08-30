@@ -25,11 +25,10 @@ export function PricingComparison() {
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card">
       {/* Header */}
-      <div className="grid grid-cols-[1.6fr_1fr_1fr_1fr] items-end gap-2 border-b border-border bg-background px-5 py-4">
+      <div className="grid grid-cols-[1.6fr_1fr_1fr] items-end gap-2 border-b border-border bg-background px-5 py-4">
         <span className="text-sm font-semibold text-foreground">Compare plans</span>
         <span className="text-center text-sm font-semibold text-foreground">Free</span>
         <span className="text-center text-sm font-semibold text-primary">Pro</span>
-        <span className="text-center text-sm font-semibold text-foreground">Team</span>
       </div>
 
       {COMPARISON.map((section) => (
@@ -42,7 +41,7 @@ export function PricingComparison() {
           {section.rows.map((row) => (
             <div
               key={row.label}
-              className="grid grid-cols-[1.6fr_1fr_1fr_1fr] items-center gap-2 border-t border-border px-5 py-3"
+              className="grid grid-cols-[1.6fr_1fr_1fr] items-center gap-2 border-t border-border px-5 py-3"
             >
               <span className="text-sm text-foreground">{row.label}</span>
               <div className="text-center">
@@ -50,9 +49,6 @@ export function PricingComparison() {
               </div>
               <div className="text-center">
                 <Cell value={row.pro} featured />
-              </div>
-              <div className="text-center">
-                <Cell value={row.team} />
               </div>
             </div>
           ))}

@@ -52,14 +52,16 @@ type Gate = "checking" | "ready" | "expired" | "invalid"
 function ResetPasswordContent() {
   const params = useSearchParams()
   const paramError = params.get("error")
-  const [gate, setGate] = useState<Gate>("checking")
+  // The callback route reports unusable links via ?error= before we get here.
+  // That answer is already in the URL, so derive it rather than storing it.
+  const paramGate: Gate | null =
+    paramError === "expired" || paramError === "invalid" ? paramError : null
+
+  const [sessionGate, setSessionGate] = useState<Gate>("checking")
+  const gate = paramGate ?? sessionGate
 
   useEffect(() => {
-    // The callback route reports unusable links via ?error= before we get here.
-    if (paramError === "expired" || paramError === "invalid") {
-      setGate(paramError)
-      return
-    }
+    if (paramGate) return
 
     let active = true
     const supabase = createClient()
@@ -70,16 +72,16 @@ function ResetPasswordContent() {
     supabase.auth
       .getSession()
       .then(({ data }) => {
-        if (active) setGate(data.session ? "ready" : "expired")
+        if (active) setSessionGate(data.session ? "ready" : "expired")
       })
       .catch(() => {
-        if (active) setGate("invalid")
+        if (active) setSessionGate("invalid")
       })
 
     return () => {
       active = false
     }
-  }, [paramError])
+  }, [paramGate])
 
   return (
     <AuthShell>
