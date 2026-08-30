@@ -12,6 +12,7 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: read # dorny/paths-filter lists a PR's changed files via the API
 
 jobs:
   # Which parts of the monorepo changed. Everything downstream reads these, so a
@@ -100,12 +101,20 @@ jobs:
         run: python -c "from app.main import app; print('imported', app.title)"
 
   # Credentials must never reach a commit. Runs on every PR regardless of paths.
+  # The upstream gitleaks action gates some accounts behind a license key, so we
+  # run the binary directly — same scan, no licensing path.
   secrets:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install gitleaks
+        run: |
+          VERSION=8.28.0
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz"             | tar -xz -C /tmp gitleaks
+          sudo mv /tmp/gitleaks /usr/local/bin/
+
+      - name: Scan history for committed secrets
+        run: gitleaks detect --source . --redact --verbose
