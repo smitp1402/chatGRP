@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Bell, Loader2, Lock, LogOut, Palette, User } from 'lucide-react'
+import { ChevronRight, CreditCard, Loader2, LogOut, Palette, User } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { PageHeader } from '@/components/page-header'
@@ -11,8 +12,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Dialog,
   DialogClose,
@@ -25,14 +24,15 @@ import {
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
-type SectionId = 'profile' | 'appearance' | 'notifications' | 'privacy'
+type SectionId = 'profile' | 'appearance'
 
 const NAV: { id: SectionId; label: string; icon: React.ElementType }[] = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'appearance', label: 'Appearance', icon: Palette },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
-  { id: 'privacy', label: 'Privacy', icon: Lock },
 ]
+
+const NAV_ITEM =
+  'flex items-center gap-2.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors'
 
 export default function SettingsPage() {
   const [section, setSection] = useState<SectionId>('profile')
@@ -49,7 +49,7 @@ export default function SettingsPage() {
               type="button"
               onClick={() => setSection(id)}
               className={cn(
-                'flex items-center gap-2.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                NAV_ITEM,
                 section === id
                   ? 'bg-accent text-foreground'
                   : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
@@ -59,14 +59,22 @@ export default function SettingsPage() {
               {label}
             </button>
           ))}
+
+          {/* Billing lives on its own page — link out rather than duplicate it. */}
+          <Link
+            href="/app/billing"
+            className={cn(NAV_ITEM, 'text-muted-foreground hover:bg-accent/60 hover:text-foreground')}
+          >
+            <CreditCard className="size-4" />
+            Billing
+            <ChevronRight className="ml-auto hidden size-3.5 opacity-50 md:block" />
+          </Link>
         </nav>
 
         {/* Content */}
         <div className="min-w-0 flex-1">
           {section === 'profile' && <ProfileSection />}
           {section === 'appearance' && <AppearanceSection />}
-          {section === 'notifications' && <NotificationsSection />}
-          {section === 'privacy' && <PrivacySection />}
         </div>
       </div>
     </div>
@@ -94,26 +102,6 @@ function SectionShell({
 function Panel({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <div className={cn('rounded-xl border border-border bg-card p-5', className)}>{children}</div>
-  )
-}
-
-function Row({
-  title,
-  description,
-  control,
-}: {
-  title: string
-  description: string
-  control: React.ReactNode
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-foreground">{title}</p>
-        <p className="text-xs text-muted-foreground">{description}</p>
-      </div>
-      <div className="shrink-0">{control}</div>
-    </div>
   )
 }
 
@@ -256,111 +244,11 @@ function ProfileSection() {
 }
 
 function AppearanceSection() {
-  const [layout, setLayout] = useState('tree')
-  const [density, setDensity] = useState('expanded')
-
   return (
     <SectionShell title="Appearance" description="Customize the look and feel of your workspace.">
       <Panel>
         <p className="mb-3 text-sm font-medium text-foreground">Theme</p>
         <ThemeToggle full />
-      </Panel>
-
-      <Panel>
-        <p className="mb-3 text-sm font-medium text-foreground">Graph layout</p>
-        <RadioGroup value={layout} onValueChange={(v) => setLayout(v as string)} className="grid-cols-3 gap-3">
-          {[
-            { v: 'tree', label: 'Tree', desc: 'Top-down hierarchy' },
-            { v: 'radial', label: 'Radial', desc: 'Nodes around a center' },
-            { v: 'force', label: 'Force', desc: 'Physics-based layout' },
-          ].map((o) => (
-            <label
-              key={o.v}
-              className={cn(
-                'flex cursor-pointer flex-col gap-1 rounded-lg border p-3 transition-colors',
-                layout === o.v ? 'border-primary bg-primary/5' : 'border-border hover:bg-accent/50',
-              )}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-foreground">{o.label}</span>
-                <RadioGroupItem value={o.v} />
-              </div>
-              <span className="text-xs text-muted-foreground">{o.desc}</span>
-            </label>
-          ))}
-        </RadioGroup>
-      </Panel>
-
-      <Panel>
-        <p className="mb-3 text-sm font-medium text-foreground">Node density</p>
-        <RadioGroup value={density} onValueChange={(v) => setDensity(v as string)} className="grid-cols-2 gap-3">
-          {[
-            { v: 'compact', label: 'Compact', desc: 'Question only, smaller nodes' },
-            { v: 'expanded', label: 'Expanded', desc: 'Question and answer preview' },
-          ].map((o) => (
-            <label
-              key={o.v}
-              className={cn(
-                'flex cursor-pointer items-center justify-between rounded-lg border p-3 transition-colors',
-                density === o.v ? 'border-primary bg-primary/5' : 'border-border hover:bg-accent/50',
-              )}
-            >
-              <div>
-                <p className="text-sm font-medium text-foreground">{o.label}</p>
-                <p className="text-xs text-muted-foreground">{o.desc}</p>
-              </div>
-              <RadioGroupItem value={o.v} />
-            </label>
-          ))}
-        </RadioGroup>
-      </Panel>
-    </SectionShell>
-  )
-}
-
-function NotificationsSection() {
-  return (
-    <SectionShell title="Notifications" description="Choose what ChatGRP emails you about.">
-      <Panel className="divide-y divide-border">
-        <Row
-          title="Weekly email digest"
-          description="A summary of your sessions and activity."
-          control={<Switch defaultChecked />}
-        />
-        <Row
-          title="Low credit warning"
-          description="Alert me when my balance drops below 20%."
-          control={<Switch defaultChecked />}
-        />
-        <Row
-          title="Product updates"
-          description="News about new models and features."
-          control={<Switch />}
-        />
-      </Panel>
-    </SectionShell>
-  )
-}
-
-function PrivacySection() {
-  return (
-    <SectionShell title="Privacy" description="Control your data and session visibility.">
-      <Panel className="divide-y divide-border">
-        <Row
-          title="Make new sessions private by default"
-          description="Sessions won't be shareable unless you enable it."
-          control={<Switch defaultChecked />}
-        />
-        <Row
-          title="Allow model training on my data"
-          description="Help improve responses. Never includes shared links."
-          control={<Switch />}
-        />
-        <Row
-          title="Search indexing"
-          description="Let public shared sessions appear in search engines."
-          control={<Switch />}
-        />
       </Panel>
     </SectionShell>
   )
