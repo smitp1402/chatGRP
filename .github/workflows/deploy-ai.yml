@@ -57,11 +57,31 @@ jobs:
       - name: Deploy to Cloud Run
         id: deploy
         run: |
+          # Env vars and secrets are NOT set here: Cloud Run carries the previous
+          # revision's configuration forward on every deploy. Never add
+          # --clear-env-vars. The container refuses to start without
+          # SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (see app/config.py), in
+          # which case the health check below fails and the old revision keeps
+          # serving. Required set: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+          # WEB_ORIGIN, USE_MOCK_AI, and the provider API keys as secrets.
+          #
+          # Limits live here, not in the console, so a redeploy cannot drop them.
+          #   max-instances: cost ceiling under a spike or a runaway client.
+          #   min-instances: 0 = no idle cost, ~3-8 s cold start on the first
+          #                  request after idle. Flip to 1 once paying users notice.
+          #   timeout:       one SSE stream may run this long; must exceed
+          #                  PROVIDER_TIMEOUT_SECONDS so the provider gives up first.
           gcloud run deploy "$SERVICE" \
             --image "$IMAGE" \
             --region "$REGION" \
             --platform managed \
             --allow-unauthenticated \
+            --max-instances 20 \
+            --min-instances 0 \
+            --timeout 600 \
+            --cpu 1 \
+            --memory 512Mi \
+            --concurrency 80 \
             --quiet
           echo "url=$(gcloud run services describe "$SERVICE" \
             --region "$REGION" --format='value(status.url)')" >> "$GITHUB_OUTPUT"

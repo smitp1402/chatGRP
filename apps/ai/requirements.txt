@@ -4,7 +4,7 @@
 #   .venv/Scripts/python.exe -m pip freeze > requirements.txt
 #
 # Direct dependencies: fastapi, uvicorn[standard], sse-starlette,
-# python-jose[cryptography], python-dotenv, supabase, pydantic, httpx,
+# python-jose[cryptography], python-dotenv, supabase, pydantic, pydantic-settings, httpx,
 # openai, anthropic, google-generativeai. Everything else is transitive.
 
 annotated-doc==0.0.4
@@ -53,6 +53,7 @@ pyasn1_modules==0.4.2
 pycparser==3.0
 pydantic==2.13.4
 pydantic_core==2.46.4
+pydantic_settings==2.15.0
 PyJWT==2.13.0
 pyparsing==3.3.2
 python-dotenv==1.2.2
