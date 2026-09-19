@@ -63,6 +63,11 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      # Route-handler unit tests (vitest). Stripe and Supabase are mocked, so
+      # no secrets are needed.
+      - name: Test
+        run: pnpm test
+
       # Catches what lint and tsc cannot: bad route exports, server/client
       # boundary mistakes, and anything that only fails at build time.
       - name: Build
