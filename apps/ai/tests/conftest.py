@@ -61,13 +61,14 @@ def fake_refund(db: FakeDB, p: dict) -> None:
 @pytest.fixture
 def fake_db(monkeypatch: pytest.MonkeyPatch) -> FakeDB:
     """Replace every module's ``db`` with one shared in-memory instance."""
-    from app import attachments, billing, context, db as dbmod, main
+    from app import attachments, billing, context, db as dbmod, main, ratelimit
 
     fake = FakeDB()
     fake.rpc_handlers["reserve_credits"] = fake_reserve
     fake.rpc_handlers["refund_credits"] = fake_refund
+    fake.rpc_handlers["hit_rate_limit"] = lambda _db, _p: {"allowed": True, "hits": 1}
 
-    for module in (attachments, billing, context, dbmod, main):
+    for module in (attachments, billing, context, dbmod, main, ratelimit):
         monkeypatch.setattr(module, "db", lambda: fake)
 
     fake.table("profiles").insert({"user_id": USER_A, "plan": "free"}).execute()
@@ -78,12 +79,10 @@ def fake_db(monkeypatch: pytest.MonkeyPatch) -> FakeDB:
 
 @pytest.fixture
 def client(fake_db: FakeDB, monkeypatch: pytest.MonkeyPatch) -> TestClient:
-    """Authenticated as USER_A, rate limit disabled, cancel polled every chunk."""
+    """Authenticated as USER_A, rate limit allowing, cancel polled every chunk."""
     from app import main
     from app.auth import verify_user
-    from app.ratelimit import _hits
 
-    _hits.clear()
     main.app.dependency_overrides[verify_user] = lambda: USER_A
     monkeypatch.setattr(main, "CANCEL_POLL_SECONDS", 0.0)
     try:
