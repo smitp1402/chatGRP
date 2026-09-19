@@ -23,21 +23,21 @@ async def stream_completion(model_id: str, messages: list[dict]) -> AsyncIterato
             yield chunk
         return
 
-    try:
-        if provider == "openai" and settings.openai_api_key:
-            async for chunk in _openai(provider_model, messages):
-                yield chunk
-        elif provider == "anthropic" and settings.anthropic_api_key:
-            async for chunk in _anthropic(provider_model, messages):
-                yield chunk
-        elif provider == "google" and settings.google_api_key:
-            async for chunk in _google(provider_model, messages):
-                yield chunk
-        else:
-            async for chunk in _mock(model_id, messages, note="no API key set"):
-                yield chunk
-    except Exception as exc:  # provider/network error -> surface, don't crash the stream
-        yield f"\n[provider error: {exc}]"
+    # Provider/network errors propagate on purpose: main.py marks the attempt
+    # failed and refunds the reservation. Rewriting them as answer text here
+    # would bill the user for an error and show them a raw SDK message.
+    if provider == "openai" and settings.openai_api_key:
+        async for chunk in _openai(provider_model, messages):
+            yield chunk
+    elif provider == "anthropic" and settings.anthropic_api_key:
+        async for chunk in _anthropic(provider_model, messages):
+            yield chunk
+    elif provider == "google" and settings.google_api_key:
+        async for chunk in _google(provider_model, messages):
+            yield chunk
+    else:
+        async for chunk in _mock(model_id, messages, note="no API key set"):
+            yield chunk
 
 
 async def _mock(model_id: str, messages: list[dict], note: str = "") -> AsyncIterator[str]:

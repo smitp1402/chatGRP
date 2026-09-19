@@ -88,17 +88,16 @@ jobs:
         with:
           python-version: '3.13'
           cache: pip
-          cache-dependency-path: apps/ai/requirements.txt
+          cache-dependency-path: apps/ai/requirements-dev.txt
 
       - name: Install
-        run: pip install -r requirements.txt
+        run: pip install -r requirements-dev.txt
 
-      # The FastAPI app has no test suite yet, so importing it is the whole
-      # gate: it catches syntax errors, bad imports, and module-level failures
-      # before Cloud Run finds them. Settings read from env with defaults, so
-      # no secrets are needed to import.
-      - name: Import smoke test
-        run: python -c "from app.main import app; print('imported', app.title)"
+      # Unit + request-lifecycle tests against an in-memory fake of Supabase
+      # (tests/fake_db.py), so no secrets or database are needed. Covers credit
+      # reservation/refund, provider-error handling, and cancel ownership.
+      - name: Test
+        run: python -m pytest
 
   # Credentials must never reach a commit. Runs on every PR regardless of paths.
   # The upstream gitleaks action gates some accounts behind a license key, so we
