@@ -123,6 +123,69 @@ jobs:
             chatgrp-ai:ci \
             sh -c 'test "$(id -u)" = 1000 && python -c "from app.main import app; print(\"boots as uid\", __import__(\"os\").getuid())"'
 
+  # Browser flow against a DEDICATED Supabase project (never production - the
+  # service-role key and a password login are exposed to the job) with the AI
+  # service in mock mode. Needs E2E_* secrets (see apps/web/e2e/README.md);
+  # forks and repos without them skip cleanly instead of failing.
+  e2e:
+    needs: changes
+    if: needs.changes.outputs.web == 'true' || needs.changes.outputs.ai == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - id: gate
+        run: echo "run=${{ secrets.E2E_SUPABASE_URL != '' && secrets.E2E_DEV_PASSWORD != '' }}" >> "$GITHUB_OUTPUT"
+
+      - if: steps.gate.outputs.run != 'true'
+        run: echo 'E2E secrets not configured; skipping browser tests.'
+
+      - if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@v4
+      - if: steps.gate.outputs.run == 'true'
+        uses: pnpm/action-setup@v4
+      - if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: apps/ai/requirements.txt
+
+      - if: steps.gate.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile
+      - if: steps.gate.outputs.run == 'true'
+        run: pip install -r apps/ai/requirements.txt
+      - if: steps.gate.outputs.run == 'true'
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - if: steps.gate.outputs.run == 'true'
+        name: Browser tests
+        run: pnpm test:e2e
+        env:
+          CI: 'true'
+          # web (the AI URL is set by playwright.config.ts, not here)
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_DEV_EMAIL: ${{ secrets.E2E_DEV_EMAIL }}
+          NEXT_PUBLIC_DEV_PASSWORD: ${{ secrets.E2E_DEV_PASSWORD }}
+          # ai
+          SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          WEB_ORIGIN: http://localhost:3000
+          USE_MOCK_AI: 'true'
+
+      # Screenshots only. Traces/video would include the session cookie.
+      - if: steps.gate.outputs.run == 'true' && failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: apps/web/test-results/**/*.png
+          retention-days: 7
+          if-no-files-found: ignore
+
   # Credentials must never reach a commit. Runs on every PR regardless of paths.
   # The upstream gitleaks action gates some accounts behind a license key, so we
   # run the binary directly — same scan, no licensing path.

@@ -12,6 +12,7 @@
     "lint": "pnpm --filter web lint",
     "typecheck": "pnpm --filter web exec tsc --noEmit",
     "build": "pnpm --filter web build",
-    "test": "pnpm --filter web test"
+    "test": "pnpm --filter web test",
+    "test:e2e": "pnpm --filter web test:e2e"
   }
 }
