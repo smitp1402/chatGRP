@@ -6,39 +6,46 @@ import { Loader2, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 
-// Dev-only test credentials. Override via env if you like; defaults work as-is.
-const DEV_EMAIL = process.env.NEXT_PUBLIC_DEV_EMAIL ?? 'dev@chatgrp.dev'
-const DEV_PASSWORD = process.env.NEXT_PUBLIC_DEV_PASSWORD ?? 'devpassword123'
+// Dev-only test credentials, from apps/web/.env.local. No defaults on purpose:
+// Supabase Auth does not know about NODE_ENV, so a password written here
+// would be a working login for anyone who reads the repo.
+const DEV_EMAIL = process.env.NEXT_PUBLIC_DEV_EMAIL
+const DEV_PASSWORD = process.env.NEXT_PUBLIC_DEV_PASSWORD
 
 /**
- * One-click login for local development. Signs in with a fixed test account,
- * creating it on first use. Renders nothing in production builds.
+ * One-click login for local development. Signs in with the test account
+ * named in env, creating it on first use. Renders nothing in production
+ * builds or when the env vars are unset.
  */
 export function DevLoginButton() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
   if (process.env.NODE_ENV === 'production') return null
+  if (!DEV_EMAIL || !DEV_PASSWORD) return null
 
   async function quickLogin() {
+    const email = DEV_EMAIL
+    const password = DEV_PASSWORD
+    if (!email || !password) return
     setLoading(true)
     const supabase = createClient()
 
     let error: { message: string } | null = null
     try {
       const res = await supabase.auth.signInWithPassword({
-        email: DEV_EMAIL,
-        password: DEV_PASSWORD,
+        email,
+        password,
       })
       error = res.error
 
       // First run: the test user doesn't exist yet — create it, then retry.
       if (error) {
-        const signUp = await supabase.auth.signUp({ email: DEV_EMAIL, password: DEV_PASSWORD })
+        const signUp = await supabase.auth.signUp({ email, password })
         if (!signUp.error) {
           const retry = await supabase.auth.signInWithPassword({
-            email: DEV_EMAIL,
-            password: DEV_PASSWORD,
+            email,
+            password,
           })
           error = retry.error
         } else {
