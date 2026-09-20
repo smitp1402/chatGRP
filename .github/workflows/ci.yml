@@ -112,6 +112,17 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: docker build -f apps/ai/Dockerfile -t chatgrp-ai:ci .
 
+      # Boot it too: proves the non-root user can import the app and that the
+      # bundled pricing.json is where app/pricing.py expects it. Placeholder
+      # Supabase values satisfy the fail-fast config; nothing is contacted.
+      - name: Docker run smoke
+        run: |
+          docker run --rm \
+            -e SUPABASE_URL=https://placeholder.supabase.co \
+            -e SUPABASE_SERVICE_ROLE_KEY=placeholder \
+            chatgrp-ai:ci \
+            sh -c 'test "$(id -u)" = 1000 && python -c "from app.main import app; print(\"boots as uid\", __import__(\"os\").getuid())"'
+
   # Credentials must never reach a commit. Runs on every PR regardless of paths.
   # The upstream gitleaks action gates some accounts behind a license key, so we
   # run the binary directly — same scan, no licensing path.
