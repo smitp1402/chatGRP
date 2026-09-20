@@ -34,10 +34,14 @@ from .budget import approx_tokens, enforce_budget, message_tokens, total_tokens
 from .config import settings
 from .context import build_context
 from .db import attempt_belongs_to, db, session_belongs_to
+from .observability import cloud_run_revision, default_environment, init_sentry, tag_user
 from .ratelimit import check_rate_limit
 from .router import stream_completion
 
 log = logging.getLogger(__name__)
+
+# Before the app exists, so the Starlette/FastAPI integrations wrap it.
+init_sentry(settings.sentry_dsn, default_environment(), cloud_run_revision())
 
 app = FastAPI(title="ChatGRP AI Layer", version="0.3.0")
 
@@ -105,6 +109,7 @@ def health() -> dict:
 @app.post("/generate")
 async def generate(body: GenerateRequest, user_id: str = Depends(verify_user)):
     """Create a node (reply to parent_id), then stream the assistant answer."""
+    tag_user(user_id)
     check_rate_limit(user_id)
 
     if not session_belongs_to(body.session_id, user_id):

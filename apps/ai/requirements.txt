@@ -4,7 +4,7 @@
 #   .venv/Scripts/python.exe -m pip freeze > requirements.txt
 #
 # Direct dependencies: fastapi, uvicorn[standard], sse-starlette,
-# PyJWT[crypto], python-dotenv, supabase, pydantic, pydantic-settings, httpx,
+# PyJWT[crypto], python-dotenv, supabase, pydantic, pydantic-settings, httpx, sentry-sdk[fastapi],
 # openai, anthropic, google-generativeai. Everything else is transitive.
 
 annotated-doc==0.0.4
@@ -60,6 +60,7 @@ PyYAML==6.0.3
 realtime==2.31.0
 requests==2.34.2
 rsa==4.9.1
+sentry_sdk==2.69.2
 six==1.17.0
 sniffio==1.3.1
 sse-starlette==3.4.5

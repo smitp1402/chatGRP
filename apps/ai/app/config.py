@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     # reservation) open forever.
     provider_timeout_seconds: float = Field(default=120.0, gt=0)
 
+    # Error reporting. Blank = off (local dev, tests). See observability.py.
+    sentry_dsn: str = ""
+
     # The Gemini SDK has no idle timeout — its `timeout` is a gRPC deadline for
     # the whole call. A healthy long answer must fit inside it, so it is a
     # separate, larger budget. Keep it below Cloud Run's request timeout (600).
