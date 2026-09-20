@@ -1,0 +1,10 @@
+# Build context for apps/ai/Dockerfile (built from the repo root so it can
+# include packages/shared/pricing.json). Whitelist: everything is excluded,
+# then only what the image needs is let back in. Secrets, node_modules, the
+# web app and the venv never reach the Docker daemon.
+*
+!apps/ai/requirements.txt
+!apps/ai/app/
+!packages/shared/pricing.json
+apps/ai/app/__pycache__/
+apps/ai/app/*.pyc

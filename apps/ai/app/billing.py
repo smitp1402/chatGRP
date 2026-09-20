@@ -11,24 +11,16 @@ import logging
 
 from fastapi import HTTPException
 
+from . import pricing
 from .db import db
 
 log = logging.getLogger(__name__)
 
-# Mirror of packages/shared/credits.ts (adjusted values).
-CREDIT_TABLE = {
-    "gpt-4o-mini": 2,
-    "gemini-flash": 3,
-    "gpt-4o": 10,
-    "claude-opus": 15,
-    "claude-sonnet": 10,
-    "gemini-pro": 7,
-}
-
-PLAN_CREDITS = {"free": 100, "pro": 2000, "team": 10000}
-
-# Models available on the Free tier; Pro/Team get everything.
-FREE_MODELS = {"gpt-4o-mini", "gemini-flash"}
+# All three come from packages/shared/pricing.json — see pricing.py.
+_PRICING = pricing.load()
+CREDIT_TABLE: dict[str, int] = dict(_PRICING.credits)
+PLAN_CREDITS: dict[str, int] = dict(_PRICING.plan_credits)
+FREE_MODELS: set[str] = set(_PRICING.free_models)  # Pro gets everything
 
 
 def get_plan(user_id: str) -> str:

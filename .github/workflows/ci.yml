@@ -37,6 +37,7 @@ jobs:
               - '.github/workflows/ci.yml'
             ai:
               - 'apps/ai/**'
+              - 'packages/shared/pricing.json'
               - '.github/workflows/ci.yml'
 
   web:
@@ -103,6 +104,13 @@ jobs:
       # reservation/refund, provider-error handling, and cancel ownership.
       - name: Test
         run: python -m pytest
+
+      # The image is built from the repo root with a whitelist .dockerignore.
+      # Build it here (no push) so a missing `!` line fails the PR, not the
+      # production deploy.
+      - name: Docker build smoke
+        working-directory: ${{ github.workspace }}
+        run: docker build -f apps/ai/Dockerfile -t chatgrp-ai:ci .
 
   # Credentials must never reach a commit. Runs on every PR regardless of paths.
   # The upstream gitleaks action gates some accounts behind a license key, so we

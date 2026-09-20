@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - 'apps/ai/**'
+      - 'packages/shared/pricing.json'
       - '.github/workflows/deploy-ai.yml'
   workflow_dispatch:
 
@@ -46,11 +47,12 @@ jobs:
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
       # Tagged with the commit SHA so a rollback names an exact revision.
+      # Built from the repo root (see the root .dockerignore) so the image can
+      # include packages/shared/pricing.json alongside apps/ai.
       - name: Build and push
-        working-directory: apps/ai
         run: |
           IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE}:${GITHUB_SHA}"
-          docker build -t "$IMAGE" .
+          docker build -f apps/ai/Dockerfile -t "$IMAGE" .
           docker push "$IMAGE"
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
 

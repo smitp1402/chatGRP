@@ -52,3 +52,6 @@ client_secret_*.json
 
 # Supabase CLI scratch
 supabase/.temp/
+
+# generated into the AI image by the Dockerfile; never commit a local copy
+apps/ai/app/pricing.json
