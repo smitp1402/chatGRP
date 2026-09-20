@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import * as Sentry from '@sentry/nextjs'
 import { AlertTriangle } from 'lucide-react'
 
 export default function AppError({
@@ -11,8 +12,11 @@ export default function AppError({
   reset: () => void
 }) {
   useEffect(() => {
-    // Hook a monitoring service (Sentry) here in production.
-    console.error(error)
+    // Server-side errors arrive here with a `digest` and were already
+    // reported by onRequestError (instrumentation.ts) with the real stack;
+    // the client copy is redacted. Client render errors have no digest and
+    // are swallowed by this boundary, so they must be reported here.
+    if (!error.digest) Sentry.captureException(error)
   }, [error])
 
   return (

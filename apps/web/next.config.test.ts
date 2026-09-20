@@ -44,6 +44,7 @@ describe("security headers", () => {
     expect(directive("connect-src")).toContain("https://*.supabase.co")
     expect(directive("connect-src")).toContain("wss://*.supabase.co")
     expect(directive("connect-src")).toContain("posthog.com")
+    expect(directive("connect-src")).toContain("https://*.sentry.io")
 
     // next/font self-hosts Google fonts, so no fonts.gstatic.com.
     expect(directive("font-src")).toBe("font-src 'self'")

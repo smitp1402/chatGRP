@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -40,8 +41,10 @@ const csp = [
   "img-src 'self' data: blob: https://*.supabase.co",
   // next/font self-hosts Google fonts, so no fonts.gstatic.com.
   "font-src 'self'",
-  // Supabase (auth, storage, realtime), the AI service, PostHog. Dev adds the HMR socket.
-  `connect-src 'self' https://*.supabase.co wss://*.supabase.co ${aiOrigin} ${posthogOrigin} https://*.posthog.com${isDev ? " ws://localhost:* http://localhost:*" : ""}`,
+  // Supabase (auth, storage, realtime), the AI service, PostHog, Sentry ingest
+  // (browser reports go straight to sentry.io — see the note on withSentryConfig).
+  // Dev adds the HMR socket.
+  `connect-src 'self' https://*.supabase.co wss://*.supabase.co ${aiOrigin} ${posthogOrigin} https://*.posthog.com https://*.sentry.io${isDev ? " ws://localhost:* http://localhost:*" : ""}`,
   // Stripe Checkout and Google OAuth are full-page redirects, never embedded.
   "frame-src 'none'",
   "object-src 'none'",
@@ -72,4 +75,18 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Sentry. Deliberately NO tunnelRoute: the SDK's tunnel is a rewrite whose
+// destination org/project come from the request's own query string, i.e. an
+// unauthenticated relay to any Sentry account through this origin. Browser
+// reports go straight to *.sentry.io instead (allowed in connect-src); an
+// ad blocker may drop some client events, which is the cheaper failure.
+// Source maps upload only when SENTRY_AUTH_TOKEN is present (CI/Vercel).
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: true,
+  telemetry: false,
+  widenClientFileUpload: true,
+  sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
+});
