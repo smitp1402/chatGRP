@@ -37,7 +37,7 @@ export async function POST(request: Request) {
    */
   async function setPlanByCustomer(
     customerId: string,
-    plan: "free" | "pro" | "team",
+    plan: "free" | "pro",
     subscriptionId: string | null,
     periodEnd: number | null,
     cancelAtPeriodEnd: boolean,
