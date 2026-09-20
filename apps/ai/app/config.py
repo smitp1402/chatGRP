@@ -12,10 +12,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    # Supabase — JWT verification and service-role DB writes. Required.
+    # Supabase — JWKS discovery (auth.py) and service-role DB writes. Required.
     supabase_url: str = Field(min_length=1)
     supabase_service_role_key: str = Field(min_length=1)
-    supabase_jwt_secret: str = ""
 
     # Allowed browser origin for CORS (the Next.js web app).
     web_origin: str = "http://localhost:3000"
