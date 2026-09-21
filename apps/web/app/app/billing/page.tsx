@@ -143,7 +143,7 @@ export default function BillingPage() {
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
                 {winding
-                  ? `Canceled — you keep ${plan === 'team' ? 'Team' : 'Pro'} until ${endsOn ?? 'the end of your billing period'}, then move to Free.`
+                  ? `Canceled — you keep Pro until ${endsOn ?? 'the end of your billing period'}, then move to Free.`
                   : plan === 'free'
                     ? 'Upgrade to unlock all models and more credits.'
                     : 'Manage or cancel your subscription anytime.'}

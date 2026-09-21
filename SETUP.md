@@ -320,7 +320,7 @@ New-Item -ItemType Directory apps/ai/app -Force
 cd apps/ai
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install fastapi "uvicorn[standard]" sse-starlette python-jose supabase pydantic
+pip install fastapi "uvicorn[standard]" sse-starlette "PyJWT[crypto]" supabase pydantic pydantic-settings
 pip freeze > requirements.txt
 ```
 
@@ -336,7 +336,7 @@ app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000"],
                    allow_methods=["*"], allow_headers=["*"])
 
-JWT_SECRET = os.environ["SUPABASE_JWT_SECRET"]
+# Tokens are verified against the project JWKS — see apps/ai/app/auth.py.
 
 def verify_user(authorization: str = "") -> str:
     token = authorization.replace("Bearer ", "")
@@ -371,7 +371,6 @@ async def generate():
 ```
 SUPABASE_URL=https://<ref>.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
-SUPABASE_JWT_SECRET=<jwt-secret>
 ```
 Run it: `uvicorn app.main:app --reload --port 8000` → `http://localhost:8000/health` returns `{"ok":true}`. `cd ../..`
 
@@ -405,7 +404,7 @@ cd apps/ai
 railway init
 railway up
 ```
-In the Railway dashboard, add the 3 env vars from `apps/ai/.env` (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`). Copy the generated public URL, e.g. `https://chatgrp-ai.up.railway.app`. `cd ../..`
+In the Railway dashboard, add the env vars from `apps/ai/.env` (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `WEB_ORIGIN`). Copy the generated public URL, e.g. `https://chatgrp-ai.up.railway.app`. `cd ../..`
 
 ### 7b. Vercel (apps/web)
 ```powershell
@@ -448,7 +447,6 @@ If that streams on the deployed URL, the walking skeleton is live and every late
 | `NEXT_PUBLIC_AI_URL` | web | Railway URL (local: `http://localhost:8000`) |
 | `SUPABASE_URL` | ai (Railway + .env) | Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | ai | Supabase service_role key (server only) |
-| `SUPABASE_JWT_SECRET` | ai | Supabase JWT secret (verifies user tokens) |
 | `STRIPE_SECRET_KEY` | web | Stripe test secret (Phase 5) |
 | `STRIPE_WEBHOOK_SECRET` | web | Stripe webhook signing secret (Phase 5) |
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` | ai | Provider keys (Phase 3) |

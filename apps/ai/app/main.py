@@ -1,11 +1,25 @@
 """ChatGRP AI layer (FastAPI).
 
 Owns everything that touches an AI model: streaming, context building, model
-routing, generation-attempt tracking, and (later) credit deduction. This phase
-implements a real node/message lifecycle with MOCK token streaming; real
-provider calls arrive at Phase 3 (Multi-Model).
+routing, generation-attempt tracking, and credit accounting.
+
+/generate lifecycle:
+  rate limit -> session ownership -> attachment ownership -> plan gate
+  -> reserve credits (atomic in Postgres, may 402)
+  -> build prompt (may 413)
+  -> create node + messages + attempt
+  -> stream -> completed | failed | cancelled
+
+Credits are reserved before any row exists and refunded on every path that
+does not end in a completed answer, so a user is never charged for an answer
+they did not receive.
 """
+import asyncio
 import json
+import logging
+import time
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -15,15 +29,21 @@ from sse_starlette.sse import EventSourceResponse
 
 from . import attachments as att
 from .auth import verify_user
-from .billing import assert_can_generate, record_usage
+from .billing import assert_plan_allows, link_attempt, refund_quietly, reserve_credits
 from .budget import approx_tokens, enforce_budget, message_tokens, total_tokens
 from .config import settings
 from .context import build_context
-from .db import db, session_belongs_to
+from .db import attempt_belongs_to, db, session_belongs_to
+from .observability import cloud_run_revision, default_environment, init_sentry, tag_user
 from .ratelimit import check_rate_limit
 from .router import stream_completion
 
-app = FastAPI(title="ChatGRP AI Layer", version="0.2.0")
+log = logging.getLogger(__name__)
+
+# Before the app exists, so the Starlette/FastAPI integrations wrap it.
+init_sentry(settings.sentry_dsn, default_environment(), cloud_run_revision())
+
+app = FastAPI(title="ChatGRP AI Layer", version="0.3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,6 +52,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# How often a running stream re-reads its attempt row to notice a cancel.
+# Polling (rather than in-process signalling) works across Cloud Run instances.
+CANCEL_POLL_SECONDS = 1.0
+
+# Statuses a cancel request is allowed to interrupt.
+ACTIVE_STATUSES = ("pending", "streaming")
+
+# Shown to the user on provider failure; the real error is logged server-side.
+PROVIDER_ERROR_MESSAGE = "The model provider returned an error. You were not charged."
 
 
 class AttachmentRef(BaseModel):
@@ -53,6 +83,20 @@ class GenerateRequest(BaseModel):
     attachments: list[AttachmentRef] = []
 
 
+@dataclass(frozen=True)
+class Turn:
+    """Everything the streaming generator needs to know about one generation."""
+
+    node_id: str
+    parent_id: str | None
+    assistant_id: str
+    attempt_id: str
+    ledger_id: str
+    model_id: str
+    context: list[dict]
+    tokens_input: int
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -64,11 +108,8 @@ def health() -> dict:
 
 @app.post("/generate")
 async def generate(body: GenerateRequest, user_id: str = Depends(verify_user)):
-    """Create a node (reply to parent_id), then stream a mock assistant answer.
-
-    Lifecycle: user message saved + attempt(pending) -> streaming -> assistant
-    content saved + attempt(completed). Sibling branches never leak into context.
-    """
+    """Create a node (reply to parent_id), then stream the assistant answer."""
+    tag_user(user_id)
     check_rate_limit(user_id)
 
     if not session_belongs_to(body.session_id, user_id):
@@ -85,9 +126,54 @@ async def generate(body: GenerateRequest, user_id: str = Depends(verify_user)):
     except att.AttachmentError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    # Plan gating + credit check (raises 402/403 before any work is done).
-    assert_can_generate(user_id, body.model_id)
+    plan = assert_plan_allows(user_id, body.model_id)
 
+    # Reserve before anything is persisted. Postgres serialises this per user,
+    # so parallel requests cannot overshoot the cap (migration 0008).
+    ledger_id = reserve_credits(user_id, plan, body.model_id)
+    try:
+        context = _build_prompt(body, files)
+        node_id, assistant_id, attempt_id = _create_turn(body, files, user_id)
+        link_attempt(ledger_id, attempt_id)
+    except Exception:
+        refund_quietly(ledger_id)
+        raise
+
+    turn = Turn(
+        node_id=node_id,
+        parent_id=body.parent_id,
+        assistant_id=assistant_id,
+        attempt_id=attempt_id,
+        ledger_id=ledger_id,
+        model_id=body.model_id,
+        context=context,
+        tokens_input=total_tokens(context),
+    )
+    return EventSourceResponse(_stream_events(turn))
+
+
+def _build_prompt(body: GenerateRequest, files: list[dict]) -> list[dict]:
+    """Branch context (root -> parent) + the new message, trimmed to budget."""
+    context = build_context(body.session_id, body.parent_id)
+    try:
+        current = att.build_message_content(body.message, files)
+    except att.AttachmentError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    # A single message that busts the cap on its own can never be trimmed to
+    # fit, so reject it up front rather than silently sending a truncated one.
+    if message_tokens(current) > settings.max_input_tokens:
+        raise HTTPException(
+            status_code=413,
+            detail="This message and its attachments exceed the input limit. "
+            "Try fewer or smaller files.",
+        )
+
+    return enforce_budget([*context, current])
+
+
+def _create_turn(body: GenerateRequest, files: list[dict], user_id: str) -> tuple[str, str, str]:
+    """Persist node + user message + empty assistant message + pending attempt."""
     # order_index = number of existing siblings under the same parent.
     existing = (
         db().table("nodes").select("parent_id").eq("session_id", body.session_id).execute().data
@@ -152,76 +238,124 @@ async def generate(body: GenerateRequest, user_id: str = Depends(verify_user)):
         .execute()
         .data[0]
     )
+    return node_id, assistant["id"], attempt["id"]
 
-    # Build the branch context (root -> parent), append the new message, and
-    # trim it to the input-token budget (oldest pairs dropped, root preserved).
-    context = build_context(body.session_id, body.parent_id)
+
+async def _stream_events(turn: Turn) -> AsyncIterator[dict]:
+    """SSE generator: node -> token* -> done | error | cancelled.
+
+    Every DB write after the reservation lives inside one try, so any failure
+    — provider, network, or our own bookkeeping — ends in a refund. The final
+    event is yielded *outside* the try so a client that disconnects at that
+    exact moment cannot re-enter the handlers and finish the attempt twice.
+    """
+    # Tell the client which node/attempt was created so it can render and cancel.
+    yield {
+        "event": "node",
+        "data": json.dumps(
+            {"node_id": turn.node_id, "parent_id": turn.parent_id, "attempt_id": turn.attempt_id}
+        ),
+    }
+
+    full = ""
+    outcome: str | None = None  # "done" | "cancelled" | "error" once bookkeeping has run
     try:
-        current = att.build_message_content(body.message, files)
-    except att.AttachmentError as exc:
-        db().table("generation_attempts").update(
-            {"status": "failed", "error": str(exc), "completed_at": _now()}
-        ).eq("id", attempt["id"]).execute()
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        _set_status(turn.attempt_id, "streaming")
+        last_poll = time.monotonic()
+        cancelled = False
+        async for chunk in stream_completion(turn.model_id, turn.context):
+            full += chunk
+            yield {"event": "token", "data": chunk}
 
-    # A single message that busts the cap on its own can never be trimmed to
-    # fit, so reject it up front rather than silently sending a truncated one.
-    if message_tokens(current) > settings.max_input_tokens:
-        db().table("generation_attempts").update(
-            {"status": "failed", "error": "input too large", "completed_at": _now()}
-        ).eq("id", attempt["id"]).execute()
-        raise HTTPException(
-            status_code=413,
-            detail="This message and its attachments exceed the input limit. "
-            "Try fewer or smaller files.",
-        )
+            if time.monotonic() - last_poll >= CANCEL_POLL_SECONDS:
+                last_poll = time.monotonic()
+                if _is_cancelled(turn.attempt_id):
+                    cancelled = True
+                    break
 
-    context.append(current)
-    context = enforce_budget(context)
-    tokens_input = total_tokens(context)
+        if cancelled:
+            _finish_cancelled(turn, full)
+            outcome = "cancelled"
+        else:
+            _finish_completed(turn, full)
+            outcome = "done"
+    except (asyncio.CancelledError, GeneratorExit):
+        # The client went away mid-stream. Keep what was generated, charge nothing.
+        if outcome is None:
+            _finish_cancelled(turn, full)
+        raise
+    except Exception as exc:
+        log.exception("generation failed (attempt %s, model %s)", turn.attempt_id, turn.model_id)
+        _finish_failed(turn, exc)
+        outcome = "error"
 
-    async def event_stream():
-        # Tell the client which node was created so it can add it to the canvas.
-        yield {"event": "node", "data": json.dumps({"node_id": node_id, "parent_id": body.parent_id})}
+    if outcome == "error":
+        yield {"event": "error", "data": PROVIDER_ERROR_MESSAGE}
+    else:
+        yield {"event": outcome, "data": json.dumps({"node_id": turn.node_id})}
 
-        db().table("generation_attempts").update({"status": "streaming"}).eq(
-            "id", attempt["id"]
-        ).execute()
 
-        full = ""
-        try:
-            async for chunk in stream_completion(body.model_id, context):
-                full += chunk
-                yield {"event": "token", "data": chunk}
-        except Exception as exc:
-            db().table("generation_attempts").update(
-                {"status": "failed", "error": str(exc), "completed_at": _now()}
-            ).eq("id", attempt["id"]).execute()
-            yield {"event": "error", "data": str(exc)}
-            return
+def _set_status(attempt_id: str, status: str, error: str | None = None) -> None:
+    patch: dict = {"status": status}
+    if status != "streaming":
+        patch["completed_at"] = _now()
+    if error is not None:
+        patch["error"] = error
+    db().table("generation_attempts").update(patch).eq("id", attempt_id).execute()
 
-        db().table("messages").update({"content": full}).eq("id", assistant["id"]).execute()
-        db().table("generation_attempts").update(
-            {
-                "status": "completed",
-                "completed_at": _now(),
-                "tokens_input": tokens_input,
-                "tokens_output": approx_tokens(full),
-            }
-        ).eq("id", attempt["id"]).execute()
 
-        # Deduct credits only after a successful completion.
-        record_usage(user_id, attempt["id"], body.model_id)
+def _is_cancelled(attempt_id: str) -> bool:
+    rows = (
+        db().table("generation_attempts").select("status").eq("id", attempt_id).limit(1).execute().data
+    )
+    return bool(rows) and rows[0]["status"] == "cancelled"
 
-        yield {"event": "done", "data": json.dumps({"node_id": node_id})}
 
-    return EventSourceResponse(event_stream())
+def _finish_completed(turn: Turn, full: str) -> None:
+    db().table("messages").update({"content": full}).eq("id", turn.assistant_id).execute()
+    db().table("generation_attempts").update(
+        {
+            "status": "completed",
+            "completed_at": _now(),
+            "tokens_input": turn.tokens_input,
+            "tokens_output": approx_tokens(full),
+        }
+    ).eq("id", turn.attempt_id).execute()
+
+
+def _finish_cancelled(turn: Turn, partial: str) -> None:
+    """Keep the partial answer so the user sees what they got; release the credits."""
+    db().table("messages").update({"content": partial}).eq("id", turn.assistant_id).execute()
+    _set_status(turn.attempt_id, "cancelled")
+    refund_quietly(turn.ledger_id)
+
+
+def _finish_failed(turn: Turn, exc: Exception) -> None:
+    """Record the failure and refund. Must not raise: we are already handling an error."""
+    try:
+        _set_status(turn.attempt_id, "failed", error=str(exc))
+    except Exception:  # the DB may be the thing that is failing
+        log.exception("could not mark attempt %s failed", turn.attempt_id)
+    refund_quietly(turn.ledger_id)
 
 
 @app.delete("/generate/{attempt_id}/cancel")
 async def cancel(attempt_id: str, user_id: str = Depends(verify_user)) -> dict:
-    """Mark an in-progress generation as cancelled."""
-    db().table("generation_attempts").update(
-        {"status": "cancelled", "completed_at": _now()}
-    ).eq("id", attempt_id).execute()
-    return {"cancelled": True, "attempt_id": attempt_id}
+    """Ask a running generation to stop. The stream notices on its next poll.
+
+    Only pending/streaming attempts flip; a finished one is left alone so a
+    late cancel cannot un-complete an answer that was already billed.
+    """
+    if not attempt_belongs_to(attempt_id, user_id):
+        raise HTTPException(status_code=404, detail="Attempt not found")
+
+    updated = (
+        db()
+        .table("generation_attempts")
+        .update({"status": "cancelled", "completed_at": _now()})
+        .eq("id", attempt_id)
+        .in_("status", list(ACTIVE_STATUSES))
+        .execute()
+        .data
+    )
+    return {"cancelled": bool(updated), "attempt_id": attempt_id}

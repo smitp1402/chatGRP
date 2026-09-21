@@ -1,8 +1,9 @@
 """Supabase client using the service-role key.
 
 The service-role key bypasses Row Level Security, so every write path MUST
-first verify that the session belongs to the authenticated user (see
-`assert_session_owner`). FastAPI already knows the user id from the JWT.
+first verify that the row being touched belongs to the authenticated user
+(see `session_belongs_to` / `attempt_belongs_to`). FastAPI already knows the
+user id from the JWT.
 """
 from functools import lru_cache
 
@@ -29,3 +30,30 @@ def session_belongs_to(session_id: str, user_id: str) -> bool:
         .execute()
     )
     return bool(res.data)
+
+
+def attempt_belongs_to(attempt_id: str, user_id: str) -> bool:
+    """Walk attempt -> node -> session and check the session's owner."""
+    attempt = (
+        db()
+        .table("generation_attempts")
+        .select("node_id")
+        .eq("id", attempt_id)
+        .limit(1)
+        .execute()
+        .data
+    )
+    if not attempt:
+        return False
+    node = (
+        db()
+        .table("nodes")
+        .select("session_id")
+        .eq("id", attempt[0]["node_id"])
+        .limit(1)
+        .execute()
+        .data
+    )
+    if not node:
+        return False
+    return session_belongs_to(node[0]["session_id"], user_id)

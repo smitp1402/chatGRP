@@ -1,0 +1,6 @@
+# Findings gitleaks should skip, one fingerprint per line (commit:file:rule:line).
+# Only for verified false positives - say what each one is.
+
+# A made-up UUID used as a fake share token in a unit test. The generic-api-key
+# rule fires on the variable name TOKEN; it is not a credential.
+dc2ed64cc1b8da671124c382dec43ad795882841:apps/web/app/api/share/[token]/route.test.ts:generic-api-key:29

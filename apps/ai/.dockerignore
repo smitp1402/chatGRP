@@ -1,9 +1,0 @@
-# Keep the build context tiny and never ship secrets or local venv.
-.venv/
-__pycache__/
-*.pyc
-.env
-.env.*
-!.env.example
-QA_LOG.md
-package.json

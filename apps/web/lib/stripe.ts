@@ -12,7 +12,7 @@ export function getStripe(): Stripe {
   return client
 }
 
-/** Plans that can be purchased today. Team is retired — see planForPrice. */
+/** Plans that can be purchased. Team was retired (migration 0010). */
 export type PaidPlan = "pro"
 
 /** Stripe Price id for each paid plan (from env). */
@@ -20,11 +20,12 @@ export function priceForPlan(plan: PaidPlan): string | undefined {
   return plan === "pro" ? process.env.STRIPE_PRICE_PRO : undefined
 }
 
-/** Reverse lookup: which plan a Stripe Price id maps to. */
-// Still resolves "team" so any pre-existing Team subscription keeps working.
-export function planForPrice(priceId: string | undefined): "pro" | "team" | null {
+/**
+ * Reverse lookup: which plan a Stripe Price id maps to. Anything that is not
+ * the Pro price — including a leftover Team price — resolves to null, and the
+ * webhook treats null as Free.
+ */
+export function planForPrice(priceId: string | undefined): PaidPlan | null {
   if (!priceId) return null
-  if (priceId === process.env.STRIPE_PRICE_PRO) return "pro"
-  if (priceId === process.env.STRIPE_PRICE_TEAM) return "team"
-  return null
+  return priceId === process.env.STRIPE_PRICE_PRO ? "pro" : null
 }

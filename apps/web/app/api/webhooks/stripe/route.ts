@@ -26,14 +26,23 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient()
 
+  /**
+   * Returns the DB error message, or null on success. A non-2xx response is
+   * the only thing that makes Stripe retry, so a failed write must surface —
+   * swallowing it leaves a paying customer on Free with no second attempt.
+   *
+   * A customer id that matches no profile is not a DB error (PostgREST returns
+   * zero rows, error null). Retrying cannot fix a missing mapping, so that case
+   * is logged loudly and still acknowledged with 200.
+   */
   async function setPlanByCustomer(
     customerId: string,
-    plan: "free" | "pro" | "team",
+    plan: "free" | "pro",
     subscriptionId: string | null,
     periodEnd: number | null,
     cancelAtPeriodEnd: boolean,
-  ) {
-    await admin
+  ): Promise<string | null> {
+    const { data, error } = await admin
       .from("profiles")
       .update({
         plan,
@@ -43,7 +52,17 @@ export async function POST(request: Request) {
         updated_at: new Date().toISOString(),
       })
       .eq("stripe_customer_id", customerId)
+      .select("user_id")
+    if (error) return error.message
+    if (!data || data.length === 0) {
+      console.error(
+        `[stripe webhook] ${event.type} ${event.id}: no profile has stripe_customer_id=${customerId}; plan "${plan}" not applied`,
+      )
+    }
+    return null
   }
+
+  let writeError: string | null = null
 
   switch (event.type) {
     case "customer.subscription.created":
@@ -52,7 +71,7 @@ export async function POST(request: Request) {
       const item = sub.items.data[0]
       const mapped = planForPrice(item?.price.id)
       const active = sub.status === "active" || sub.status === "trialing"
-      await setPlanByCustomer(
+      writeError = await setPlanByCustomer(
         sub.customer as string,
         active && mapped ? mapped : "free",
         sub.id,
@@ -63,11 +82,16 @@ export async function POST(request: Request) {
     }
     case "customer.subscription.deleted": {
       const sub = event.data.object as Stripe.Subscription
-      await setPlanByCustomer(sub.customer as string, "free", null, null, false)
+      writeError = await setPlanByCustomer(sub.customer as string, "free", null, null, false)
       break
     }
     default:
       break
+  }
+
+  if (writeError) {
+    console.error(`[stripe webhook] ${event.type} ${event.id}: profile update failed: ${writeError}`)
+    return new Response("Profile update failed; retry", { status: 500 })
   }
 
   return new Response("ok", { status: 200 })

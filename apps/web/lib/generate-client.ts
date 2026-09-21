@@ -13,9 +13,11 @@ export interface GenerateInput {
 }
 
 export interface GenerateCallbacks {
-  onNode?: (nodeId: string, parentId: string | null) => void
+  onNode?: (nodeId: string, parentId: string | null, attemptId: string) => void
   onToken?: (chunk: string) => void
   onDone?: (nodeId: string) => void
+  /** Stream stopped early (user cancel or disconnect). Partial answer is kept. Defaults to onDone. */
+  onCancelled?: (nodeId: string) => void
   onError?: (message: string) => void
 }
 
@@ -88,13 +90,16 @@ export async function generateStream(
       const { event, data } = parseSseBlock(block)
       if (!event) continue
       if (event === "node") {
-        const p = JSON.parse(data) as { node_id: string; parent_id: string | null }
-        cb.onNode?.(p.node_id, p.parent_id)
+        const p = JSON.parse(data) as { node_id: string; parent_id: string | null; attempt_id: string }
+        cb.onNode?.(p.node_id, p.parent_id, p.attempt_id)
       } else if (event === "token") {
         cb.onToken?.(data)
       } else if (event === "done") {
         const p = JSON.parse(data) as { node_id: string }
         cb.onDone?.(p.node_id)
+      } else if (event === "cancelled") {
+        const p = JSON.parse(data) as { node_id: string }
+        ;(cb.onCancelled ?? cb.onDone)?.(p.node_id)
       } else if (event === "error") {
         cb.onError?.(data)
       }

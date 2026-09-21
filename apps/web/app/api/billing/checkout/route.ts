@@ -34,7 +34,16 @@ export async function POST(request: Request) {
       metadata: { user_id: user.id },
     })
     customerId = customer.id
-    await admin.from("profiles").update({ stripe_customer_id: customerId }).eq("user_id", user.id)
+    // If this mapping is lost, every future webhook for the customer matches
+    // no profile and the plan never flips. Better to fail the checkout now.
+    const { error: mapError } = await admin
+      .from("profiles")
+      .update({ stripe_customer_id: customerId })
+      .eq("user_id", user.id)
+    if (mapError) {
+      console.error(`[billing] could not store stripe_customer_id for ${user.id}: ${mapError.message}`)
+      return fail("Could not start checkout. Please try again.", 500)
+    }
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin

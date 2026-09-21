@@ -23,21 +23,21 @@ async def stream_completion(model_id: str, messages: list[dict]) -> AsyncIterato
             yield chunk
         return
 
-    try:
-        if provider == "openai" and settings.openai_api_key:
-            async for chunk in _openai(provider_model, messages):
-                yield chunk
-        elif provider == "anthropic" and settings.anthropic_api_key:
-            async for chunk in _anthropic(provider_model, messages):
-                yield chunk
-        elif provider == "google" and settings.google_api_key:
-            async for chunk in _google(provider_model, messages):
-                yield chunk
-        else:
-            async for chunk in _mock(model_id, messages, note="no API key set"):
-                yield chunk
-    except Exception as exc:  # provider/network error -> surface, don't crash the stream
-        yield f"\n[provider error: {exc}]"
+    # Provider/network errors propagate on purpose: main.py marks the attempt
+    # failed and refunds the reservation. Rewriting them as answer text here
+    # would bill the user for an error and show them a raw SDK message.
+    if provider == "openai" and settings.openai_api_key:
+        async for chunk in _openai(provider_model, messages):
+            yield chunk
+    elif provider == "anthropic" and settings.anthropic_api_key:
+        async for chunk in _anthropic(provider_model, messages):
+            yield chunk
+    elif provider == "google" and settings.google_api_key:
+        async for chunk in _google(provider_model, messages):
+            yield chunk
+    else:
+        async for chunk in _mock(model_id, messages, note="no API key set"):
+            yield chunk
 
 
 async def _mock(model_id: str, messages: list[dict], note: str = "") -> AsyncIterator[str]:
@@ -64,9 +64,16 @@ async def _mock(model_id: str, messages: list[dict], note: str = "") -> AsyncIte
 async def _openai(model: str, messages: list[dict]) -> AsyncIterator[str]:
     from openai import AsyncOpenAI
 
-    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    client = AsyncOpenAI(
+        api_key=settings.openai_api_key,
+        timeout=settings.provider_timeout_seconds,
+        max_retries=1,
+    )
     stream = await client.chat.completions.create(
-        model=model, messages=_openai_messages(messages), stream=True
+        model=model,
+        messages=_openai_messages(messages),
+        stream=True,
+        max_tokens=settings.max_output_tokens,
     )
     async for chunk in stream:
         delta = chunk.choices[0].delta.content
@@ -97,9 +104,15 @@ def _openai_messages(messages: list[dict]) -> list[dict]:
 async def _anthropic(model: str, messages: list[dict]) -> AsyncIterator[str]:
     from anthropic import AsyncAnthropic
 
-    client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+    client = AsyncAnthropic(
+        api_key=settings.anthropic_api_key,
+        timeout=settings.provider_timeout_seconds,
+        max_retries=1,
+    )
     async with client.messages.stream(
-        model=model, max_tokens=1024, messages=_anthropic_messages(messages)
+        model=model,
+        max_tokens=settings.max_output_tokens,
+        messages=_anthropic_messages(messages),
     ) as stream:
         async for text in stream.text_stream:
             yield text
@@ -130,7 +143,9 @@ async def _google(model: str, messages: list[dict]) -> AsyncIterator[str]:
     import google.generativeai as genai
 
     genai.configure(api_key=settings.google_api_key)
-    gmodel = genai.GenerativeModel(model)
+    gmodel = genai.GenerativeModel(
+        model, generation_config={"max_output_tokens": settings.max_output_tokens}
+    )
     contents = []
     for m in messages:
         parts: list = [m["content"]]
@@ -142,7 +157,13 @@ async def _google(model: str, messages: list[dict]) -> AsyncIterator[str]:
         contents.append(
             {"role": "user" if m["role"] == "user" else "model", "parts": parts}
         )
-    response = await gmodel.generate_content_async(contents, stream=True)
+    # Whole-call deadline, not a per-chunk timeout (see config.py). A stalled
+    # Gemini stream is only cut off when this budget runs out.
+    response = await gmodel.generate_content_async(
+        contents,
+        stream=True,
+        request_options={"timeout": settings.provider_stream_deadline_seconds},
+    )
     async for chunk in response:
         if chunk.text:
             yield chunk.text

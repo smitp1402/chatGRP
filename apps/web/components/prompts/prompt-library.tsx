@@ -32,7 +32,11 @@ type View = { mode: 'list' } | { mode: 'edit'; prompt: SavedPrompt | null } | { 
 export function PromptLibrary({ open, onOpenChange, onInsert, initialDraft }: PromptLibraryProps) {
   const { prompts, loading, load, create, update, remove, recordUse } = usePromptStore()
   const [query, setQuery] = useState('')
-  const [view, setView] = useState<View>({ mode: 'list' })
+  // Honour the draft on the very first open too: the component mounts with
+  // open=true, so the open-changed branch below never fires for that case.
+  const [view, setView] = useState<View>(
+    initialDraft ? { mode: 'edit', prompt: null } : { mode: 'list' },
+  )
 
   useEffect(() => {
     if (open) void load()
