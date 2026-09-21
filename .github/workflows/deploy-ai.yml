@@ -69,7 +69,10 @@ jobs:
           # Optional: SENTRY_DSN (error reporting is off without it).
           #
           # Limits live here, not in the console, so a redeploy cannot drop them.
-          #   max-instances: cost ceiling under a spike or a runaway client.
+          #   max-instances: the only real cost ceiling Cloud Run has (budgets just
+          #                  alert). 1 while testing: ~$65/month if saturated 24/7,
+          #                  in practice inside the free tier. One instance serves
+          #                  80 concurrent streams. Raise it for launch.
           #   min-instances: 0 = no idle cost, ~3-8 s cold start on the first
           #                  request after idle. Flip to 1 once paying users notice.
           #   timeout:       one SSE stream may run this long; must exceed
@@ -79,7 +82,7 @@ jobs:
             --region "$REGION" \
             --platform managed \
             --allow-unauthenticated \
-            --max-instances 20 \
+            --max-instances 1 \
             --min-instances 0 \
             --timeout 600 \
             --cpu 1 \
