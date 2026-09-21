@@ -40,6 +40,20 @@ class Settings(BaseSettings):
     # reservation) open forever.
     provider_timeout_seconds: float = Field(default=120.0, gt=0)
 
+    # Sent to every provider ahead of the conversation. Without one the models
+    # default to essay-length answers: slower to stream, costlier per message,
+    # and wrong for a chat canvas. Blank disables it. Not counted against the
+    # user's input budget - it is ours, not theirs.
+    system_prompt: str = (
+        "You are ChatGRP, an assistant inside a branching chat canvas. "
+        "Be concise: lead with the answer and keep most replies under about 120 words. "
+        "Go longer only when the user asks for depth or the task needs it "
+        "(code, step-by-step work, a requested essay). "
+        "No filler introductions, no closing summaries, no restating the question. "
+        "Format with Markdown, lightly: short paragraphs, bullets for real lists, "
+        "fenced code blocks for code, and no headings in short answers."
+    )
+
     # Error reporting. Blank = off (local dev, tests). See observability.py.
     sentry_dsn: str = ""
 

@@ -40,6 +40,11 @@ async def stream_completion(model_id: str, messages: list[dict]) -> AsyncIterato
             yield chunk
 
 
+def _system_prompt() -> str | None:
+    """The configured system prompt, or None when blank (then nothing is sent)."""
+    return settings.system_prompt.strip() or None
+
+
 async def _mock(model_id: str, messages: list[dict], note: str = "") -> AsyncIterator[str]:
     last = messages[-1]["content"] if messages else ""
     prior = max(len(messages) - 1, 0)
@@ -69,9 +74,12 @@ async def _openai(model: str, messages: list[dict]) -> AsyncIterator[str]:
         timeout=settings.provider_timeout_seconds,
         max_retries=1,
     )
+    system = _system_prompt()
     stream = await client.chat.completions.create(
         model=model,
-        messages=_openai_messages(messages),
+        # OpenAI takes the system prompt as the first message.
+        messages=([{"role": "system", "content": system}] if system else [])
+        + _openai_messages(messages),
         stream=True,
         max_tokens=settings.max_output_tokens,
     )
@@ -109,10 +117,13 @@ async def _anthropic(model: str, messages: list[dict]) -> AsyncIterator[str]:
         timeout=settings.provider_timeout_seconds,
         max_retries=1,
     )
+    # Anthropic takes it as a top-level parameter and rejects system-role messages.
+    system = _system_prompt()
     async with client.messages.stream(
         model=model,
         max_tokens=settings.max_output_tokens,
         messages=_anthropic_messages(messages),
+        **({"system": system} if system else {}),
     ) as stream:
         async for text in stream.text_stream:
             yield text
@@ -143,8 +154,12 @@ async def _google(model: str, messages: list[dict]) -> AsyncIterator[str]:
     import google.generativeai as genai
 
     genai.configure(api_key=settings.google_api_key)
+    # Gemini takes it as the model's system_instruction.
+    system = _system_prompt()
     gmodel = genai.GenerativeModel(
-        model, generation_config={"max_output_tokens": settings.max_output_tokens}
+        model,
+        generation_config={"max_output_tokens": settings.max_output_tokens},
+        **({"system_instruction": system} if system else {}),
     )
     contents = []
     for m in messages:
