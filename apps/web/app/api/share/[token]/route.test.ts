@@ -26,7 +26,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 
 import { GET } from "./route"
 
-const TOKEN = "0f8fad5b-d9cb-469f-a165-70867728950e"
+const TOKEN = "0f8fad5b-d9cb-469f-a165-70867728950e" // gitleaks:allow - made-up UUID, not a credential
 const call = (token: string) => GET(new Request("http://localhost"), { params: Promise.resolve({ token }) })
 
 beforeEach(() => {
