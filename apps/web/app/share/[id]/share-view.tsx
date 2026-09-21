@@ -9,6 +9,7 @@ import { Logo } from "@/components/logo"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { FlowCanvas } from "@/components/canvas/flow-canvas"
+import { Markdown } from "@/components/chat/markdown"
 import {
   fetchSharedGraph,
   forkSharedGraph,
@@ -172,8 +173,8 @@ export function ShareView({ id }: { id: string }) {
                       {selected.question || "Untitled node"}
                     </p>
                   </div>
-                  <div className="whitespace-pre-wrap rounded-lg border border-border bg-background p-3 text-sm leading-relaxed text-muted-foreground">
-                    {selected.answer || "No answer recorded."}
+                  <div className="rounded-lg border border-border bg-background p-3 text-sm leading-relaxed text-muted-foreground">
+                    {selected.answer ? <Markdown text={selected.answer} /> : "No answer recorded."}
                   </div>
                   <div className="flex items-center justify-between border-t border-border pt-3 text-xs">
                     <span className="inline-flex items-center gap-1.5">
