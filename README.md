@@ -192,8 +192,12 @@ GitHub mints a short-lived token per run and there is no service-account JSON
 key to leak or rotate. Images are tagged with the commit SHA, and a failing
 post-deploy health check leaves the previous revision serving traffic.
 
-The web app deploys through Vercel's own Git integration. Database migrations
-are applied by hand with `supabase db push`.
+[`migrate.yml`](.github/workflows/migrate.yml) applies database migrations on
+merge when `supabase/migrations/` changed, so schema and code ship together
+rather than the database waiting on someone remembering. Migrations are
+additive, so the two workflows do not need sequencing.
+
+The web app deploys through Vercel's own Git integration.
 
 ---
 
@@ -201,8 +205,9 @@ are applied by hand with `supabase db push`.
 
 Worth stating plainly rather than leaving to be discovered:
 
-- **Migrations are manual.** `supabase db push` by hand on merge. Fine for one
-  developer, wrong for a team.
+- **Migrations are additive only.** They apply automatically on merge, which
+  works because nothing so far drops a column. A destructive change would need
+  the migrate and deploy workflows sequenced, or splitting across two deploys.
 - **Cloud Run is capped at one instance** while the app is in testing. That is
   a deliberate cost ceiling, not a capacity estimate — one instance serves 80
   concurrent streams, and the cap is a one-line change for launch.

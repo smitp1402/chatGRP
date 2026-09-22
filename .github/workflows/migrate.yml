@@ -1,0 +1,96 @@
+name: Apply database migrations
+
+# Schema and code ship together or they do not ship.
+#
+# Until now migrations were run by hand after merging, which made the two
+# halves of one change move at different speeds: Vercel and Cloud Run deploy
+# themselves in minutes, while the database waited on someone remembering.
+# Nothing caught the gap - CI stays green, because the Python suite runs
+# against an in-memory fake that has whatever columns the tests ask for. The
+# first sign would have been a user hitting a column that is not there.
+#
+# This and deploy-ai.yml are separate workflows on the same push, so their
+# order is NOT guaranteed. That is tolerable because migrations here are
+# additive - new columns, new tables, new functions - so old code keeps working
+# against the new schema either way. A destructive migration would need the two
+# sequenced, or splitting across two deploys (add, migrate, then remove).
+#
+# A migration that fails stops this run without touching the services.
+#
+# FIRST RUN: the history table is empty, because every migration so far was
+# applied through the SQL editor. `db push` would try to re-run 0001 and fail
+# on tables that already exist. Run the "Repair migration history" workflow
+# once before merging anything that touches supabase/migrations/.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - '.github/workflows/migrate.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: migrate
+  cancel-in-progress: false # never interrupt a migration mid-flight
+
+permissions:
+  contents: read
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      # Forks and any clone without the secrets skip cleanly rather than
+      # failing, the same way the e2e job does.
+      - id: gate
+        run: echo "run=${{ secrets.SUPABASE_ACCESS_TOKEN != '' && secrets.SUPABASE_PROJECT_ID != '' }}" >> "$GITHUB_OUTPUT"
+
+      - if: steps.gate.outputs.run != 'true'
+        run: echo 'Supabase secrets not configured; skipping migrations.'
+
+      - if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@v4
+
+      - if: steps.gate.outputs.run == 'true'
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - if: steps.gate.outputs.run == 'true'
+        name: Link project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_ID }}"
+
+      # Printed before and after so the log says what the database believed,
+      # and what changed. `db push` alone does not make that obvious.
+      - if: steps.gate.outputs.run == 'true'
+        name: Migration status before
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase migration list
+
+      - if: steps.gate.outputs.run == 'true'
+        name: Apply
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase db push
+
+      - if: steps.gate.outputs.run == 'true'
+        name: Migration status after
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase migration list
+
+      # A migration cannot be rolled back the way a deploy can: dropping a
+      # column drops the data in it. Say so where someone will read it.
+      - if: steps.gate.outputs.run == 'true' && failure()
+        run: |
+          echo "::error::Migration failed. The schema may be partly applied."
+          echo "Check 'Migration status before' above for what the database had."
+          echo "Migrations are not reversible - inspect the database before retrying."
