@@ -1,5 +1,5 @@
 {
-  "$comment": "Single source of truth for pricing. TypeScript imports this file (credits.ts); the AI service reads it at startup (apps/ai/app/pricing.py, copied into the image by apps/ai/Dockerfile). Credit values are calibrated for ~$0.0018/credit margin against provider pricing — see PROJECT_PLAN.md §7.",
+  "$comment": "Single source of truth for pricing. TypeScript imports this file (credits.ts); the AI service reads it at startup (apps/ai/app/pricing.py, copied into the image by apps/ai/Dockerfile). Credit values are calibrated for ~$0.0018/credit margin against provider pricing.",
   "credits": {
     "gpt-4o-mini": 2,
     "gemini-flash": 3,

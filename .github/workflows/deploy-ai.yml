@@ -92,9 +92,9 @@ jobs:
           echo "url=$(gcloud run services describe "$SERVICE" \
             --region "$REGION" --format='value(status.url)')" >> "$GITHUB_OUTPUT"
 
-      # The service has no test suite, so this is the only proof the container
-      # actually boots rather than merely building. A failure here fails the run
-      # loudly instead of leaving a dead revision serving traffic.
+      # CI already ran pytest and a boot smoke test on the image; this is the
+      # proof that THIS revision is live and serving. A failure here fails the
+      # run loudly instead of leaving a dead revision taking traffic.
       - name: Health check
         run: |
           URL="${{ steps.deploy.outputs.url }}/health"

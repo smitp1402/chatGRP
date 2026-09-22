@@ -39,6 +39,18 @@ __pycache__/
 # personal study reference (gitignored per project rule)
 STUDY_GUIDE.md
 
+# local working notes and tooling state - not part of the product
+QA_LOG.md
+apps/ai/QA_LOG.md
+DASHBOARD.html
+SETUP.md
+apps/DeploymentLink
+.claude/
+
+# planning docs, PRDs and the deployment map - local reference only
+docs/
+doc/
+
 # secrets / credentials that must never be committed
 supabase_password.txt
 *password*.txt
