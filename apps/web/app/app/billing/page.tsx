@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import { Check, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Plan } from '@chatgrp/shared'
+import { MODELS, PLAN_CREDITS, modelsForPlan, type Plan } from '@chatgrp/shared'
 import { PageHeader } from '@/components/page-header'
+import { CancelDialog } from '@/components/billing/cancel-dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -16,6 +17,7 @@ import {
   openBillingPortal,
   cancelSubscription,
   resumeSubscription,
+  type CancelFeedback,
 } from '@/lib/billing-client'
 
 /** "August 30, 2026" — the day a winding-down plan actually drops to Free. */
@@ -34,26 +36,43 @@ interface PlanCard {
   features: string[]
 }
 
+// Credits come from pricing.json, the same file the AI service enforces, so
+// this card cannot drift from what a plan actually grants. The feature lines
+// list only things that are really gated: the models. Nothing in the API or
+// the database limits sessions, nodes or the prompt library on either plan,
+// and this card used to claim "3 sessions" and "Presets only" for Free.
 const PLANS: PlanCard[] = [
   {
     id: 'free',
     name: 'Free',
     price: '$0',
-    credits: '100 credits / mo',
-    features: ['GPT-4o mini + Gemini Flash', '3 sessions', 'Presets only'],
+    credits: `${PLAN_CREDITS.free.toLocaleString('en-US')} credits / mo`,
+    features: [
+      modelsForPlan('free')
+        .map((m) => m.name)
+        .join(' + '),
+      'Unlimited graphs and branches',
+      'Fork, export, prompt library',
+    ],
   },
   {
     id: 'pro',
     name: 'Pro',
     price: '$12',
-    credits: '2,000 credits / mo',
-    features: ['All 6 models', 'Unlimited sessions', 'Fork, export, prompt library', 'Custom layouts'],
+    credits: `${PLAN_CREDITS.pro.toLocaleString('en-US')} credits / mo`,
+    features: [
+      `All ${MODELS.length} models`,
+      `${PLAN_CREDITS.pro / PLAN_CREDITS.free}× the monthly credits`,
+      'Per-message model switching',
+      'Everything in Free',
+    ],
   },
 ]
 
 export default function BillingPage() {
   const { plan, creditsUsed, creditsCap, cancelAtPeriodEnd, currentPeriodEnd, load } = useMeStore()
   const [busy, setBusy] = useState<string | null>(null)
+  const [cancelOpen, setCancelOpen] = useState(false)
   const endsOn = formatPeriodEnd(currentPeriodEnd)
   const winding = plan !== 'free' && cancelAtPeriodEnd
 
@@ -93,16 +112,13 @@ export default function BillingPage() {
     }
   }
 
-  async function cancel() {
-    if (
-      !window.confirm(
-        "Cancel your subscription? You'll keep your current plan until the end of the billing period, then move to Free.",
-      )
-    )
-      return
+  async function cancel(feedback?: CancelFeedback) {
     setBusy('cancel')
     try {
-      await cancelSubscription()
+      await cancelSubscription(feedback)
+      // Closed only on success: a failed cancel leaves the dialog up with the
+      // answer still filled in, so retrying does not mean typing it again.
+      setCancelOpen(false)
       toast.success('Subscription set to cancel at the end of your billing period.')
       await load()
     } catch (err) {
@@ -176,7 +192,7 @@ export default function BillingPage() {
                       variant="ghost"
                       size="sm"
                       className="text-destructive hover:text-destructive"
-                      onClick={() => void cancel()}
+                      onClick={() => setCancelOpen(true)}
                       disabled={busy !== null}
                     >
                       {busy === 'cancel' ? <Loader2 className="size-4 animate-spin" /> : null}
@@ -251,6 +267,21 @@ export default function BillingPage() {
           </div>
         </section>
       </div>
+
+      <CancelDialog
+        // Remounts on each open so a previously abandoned answer is not still
+        // sitting in the form.
+        key={cancelOpen ? 'open' : 'closed'}
+        open={cancelOpen}
+        onOpenChange={(next) => {
+          // Not dismissable mid-request: closing it would strip the spinner off
+          // a cancellation that is still in flight.
+          if (busy !== 'cancel') setCancelOpen(next)
+        }}
+        endsOn={endsOn}
+        busy={busy === 'cancel'}
+        onConfirm={(feedback) => void cancel(feedback)}
+      />
     </div>
   )
 }
