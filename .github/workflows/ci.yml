@@ -181,7 +181,7 @@ jobs:
 
       # Screenshots only. Traces/video would include the session cookie.
       - if: steps.gate.outputs.run == 'true' && failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-screenshots
           path: apps/web/test-results/**/*.png
