@@ -5,7 +5,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 
 export function MarketingNav() {
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md backdrop-saturate-150">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-3.5">
         <Link href="/" aria-label="ChatGRP home">
           <Logo />

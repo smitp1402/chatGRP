@@ -102,7 +102,7 @@ export function GraphCanvas({
       onPointerLeave={onPointerUp}
     >
       {/* Zoom / pan tools */}
-      <div className="absolute left-4 top-4 z-20 flex items-center gap-1 rounded-lg border border-border bg-card/90 p-1 shadow-sm backdrop-blur">
+      <div className="absolute left-4 top-4 z-20 flex items-center gap-1 rounded-lg border border-border bg-surface-2/90 p-1 shadow-[var(--elevation-1)] backdrop-blur">
         <button
           type="button"
           onClick={() => zoom(-0.1)}

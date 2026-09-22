@@ -11,14 +11,14 @@ export function PricingCards() {
         <div
           key={plan.name}
           className={cn(
-            "relative flex flex-col rounded-2xl border p-6",
+            "surface relative flex flex-col rounded-xl p-6",
             plan.featured
-              ? "border-primary bg-card shadow-lg ring-1 ring-primary"
-              : "border-border bg-card",
+              ? "surface-raised bg-surface-2 ring-1 ring-brand/60"
+              : "bg-card",
           )}
         >
           {plan.featured && (
-            <span className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">
+            <span className="absolute -top-3 left-6 z-10 rounded-md bg-brand px-3 py-1 text-xs font-medium text-white">
               Most popular
             </span>
           )}
@@ -32,7 +32,7 @@ export function PricingCards() {
             </span>
             <span className="text-sm text-muted-foreground">{plan.period}</span>
           </div>
-          <p className="mt-1 font-mono text-xs text-primary">{plan.credits}</p>
+          <p className="mt-1 font-mono text-xs text-brand">{plan.credits}</p>
 
           <Button
             className="mt-6"
@@ -45,7 +45,7 @@ export function PricingCards() {
           <ul className="mt-6 flex flex-1 flex-col gap-3">
             {plan.features.map((f) => (
               <li key={f} className="flex items-start gap-2.5 text-sm text-foreground">
-                <Check className="mt-0.5 size-4 shrink-0 text-primary" />
+                <Check className="mt-0.5 size-4 shrink-0 text-brand" />
                 <span className="leading-snug">{f}</span>
               </li>
             ))}

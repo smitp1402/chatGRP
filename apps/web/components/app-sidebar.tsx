@@ -104,7 +104,7 @@ export function AppSidebar() {
   const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1)
 
   return (
-    <aside className="flex h-full w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
+    <aside className="surface surface-flat surface-no-edge relative z-10 flex h-full w-56 shrink-0 flex-col rounded-none border-r border-sidebar-border bg-sidebar">
       <div className="flex h-14 items-center px-3">
         <Link href="/app" aria-label="ChatGRP home">
           <Logo />

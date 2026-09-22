@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Network } from 'lucide-react'
 import { AppSidebar } from '@/components/app-sidebar'
+import { AmbientBackground } from '@/components/ambient-background'
 import { FlowCanvas } from '@/components/canvas/flow-canvas'
 import { ChatPanel } from '@/components/chat-panel'
 import { LayoutSwitcher } from '@/components/layout/layout-switcher'
@@ -77,7 +78,8 @@ export default function AppPage() {
   )
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background">
+    <div className="relative flex h-screen w-full overflow-hidden bg-background">
+      <AmbientBackground />
       {/* Completes a fork started from a share link; useSearchParams needs a boundary. */}
       <Suspense fallback={null}>
         <ForkResumer />
@@ -120,7 +122,7 @@ export default function AppPage() {
 function CanvasMessage({ title, body }: { title: string; body: string }) {
   return (
     <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-      <div className="flex max-w-xs flex-col items-center gap-2 rounded-xl border border-border bg-card/80 px-6 py-5 text-center shadow-sm backdrop-blur">
+      <div className="surface flex max-w-xs flex-col items-center gap-2 rounded-xl bg-card/85 px-6 py-5 text-center backdrop-blur">
         <Network className="size-6 text-muted-foreground" />
         <p className="text-sm font-medium text-foreground">{title}</p>
         <p className="text-xs leading-relaxed text-muted-foreground">{body}</p>

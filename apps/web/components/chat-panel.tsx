@@ -279,7 +279,7 @@ export function ChatPanel({ allowFork = true }: ChatPanelProps) {
   }
 
   return (
-    <div className="flex h-full w-full min-w-0 flex-col border-l border-border bg-background">
+    <div className="surface surface-flat surface-no-edge relative z-10 flex h-full w-full min-w-0 flex-col rounded-none border-l border-border bg-background">
       {/* Breadcrumb */}
       <div className="flex h-14 items-center gap-1 overflow-x-auto border-b border-border px-4">
         {crumbs.length === 0 ? (
@@ -338,7 +338,7 @@ export function ChatPanel({ allowFork = true }: ChatPanelProps) {
       <div className="border-t border-border p-3">
         <div className="mb-2 flex flex-wrap items-center gap-1.5">
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground transition-colors hover:bg-accent">
+            <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2 py-1 text-xs text-foreground transition-colors hover:bg-surface-3">
               <span
                 className="inline-block size-1.5 rounded-full"
                 style={{ backgroundColor: PROVIDER_DOT[activeModel?.provider ?? 'openai'] }}
@@ -445,7 +445,7 @@ export function ChatPanel({ allowFork = true }: ChatPanelProps) {
             void addFiles(Array.from(e.dataTransfer.files))
           }}
           className={cn(
-            'flex items-end gap-2 rounded-xl border bg-card p-2 transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring',
+            'flex items-end gap-2 rounded-lg border bg-surface-2 p-2 shadow-[var(--elevation-1)] transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring',
             dragOver ? 'border-primary bg-primary/5' : 'border-input',
           )}
         >
@@ -554,7 +554,7 @@ function AiBubble({
   const model = modelId ? modelById(modelId) : undefined
   return (
     <div className="flex flex-col items-start gap-1">
-      <div className="max-w-[90%] rounded-2xl rounded-bl-sm border border-border bg-card px-3 py-2 text-[13px] leading-relaxed text-card-foreground">
+      <div className="max-w-[90%] rounded-xl rounded-bl-sm border border-border bg-surface-2 px-3 py-2 text-[13px] leading-relaxed text-card-foreground">
         {text ? (
           <Markdown text={text} />
         ) : streaming ? (

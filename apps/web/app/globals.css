@@ -41,6 +41,14 @@
   --color-foreground: var(--foreground);
   --color-background: var(--background);
 
+  /* Tonal elevation: each step is a lighter surface, not a bigger glow. */
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  /* Accent reserved for signal — state, identity, data. Distinct from --primary,
+     which is for actions (buttons, submit). In dark they coincide; in light they
+     deliberately do not, because light-mode actions are near-black. */
+  --color-brand: var(--brand);
+
   --color-canvas: var(--canvas);
   --color-node-user: var(--node-user);
   --color-node-user-foreground: var(--node-user-foreground);
@@ -58,95 +66,148 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ==========================================================================
+   LIGHT — white tonal surfaces, near-black actions, colour only as signal.
+   ========================================================================== */
 :root {
   color-scheme: light;
-  --background: oklch(0.985 0.002 250);
-  --foreground: oklch(0.205 0.01 260);
+  --background: oklch(0.949 0.006 264.5);
+  --foreground: oklch(0.2 0.01 268);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.205 0.01 260);
+  --card-foreground: oklch(0.2 0.01 268);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.205 0.01 260);
-  --primary: oklch(0.481 0.165 282);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.96 0.004 250);
-  --secondary-foreground: oklch(0.28 0.01 260);
-  --muted: oklch(0.96 0.004 250);
-  --muted-foreground: oklch(0.53 0.01 260);
-  --accent: oklch(0.95 0.006 250);
-  --accent-foreground: oklch(0.28 0.01 260);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.9 0.006 260);
-  --input: oklch(0.9 0.006 260);
-  --ring: oklch(0.481 0.165 282);
-  --chart-1: oklch(0.55 0.19 300);
-  --chart-2: oklch(0.62 0.12 195);
-  --chart-3: oklch(0.72 0.15 75);
-  --chart-4: oklch(0.55 0.15 250);
-  --chart-5: oklch(0.6 0.12 160);
-  --radius: 0.5rem;
+  --popover-foreground: oklch(0.2 0.01 268);
 
-  --canvas: oklch(0.955 0.004 250);
-  --node-user: oklch(0.55 0.19 300);
+  /* actions are near-black: the quiet, professional default */
+  --primary: oklch(0.178 0.011 268);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.955 0.006 264.5);
+  --secondary-foreground: oklch(0.28 0.01 268);
+  --muted: oklch(0.955 0.006 264.5);
+  --muted-foreground: oklch(0.452 0.011 286);
+  --accent: oklch(0.94 0.007 264.5);
+  --accent-foreground: oklch(0.28 0.01 268);
+  --destructive: oklch(0.546 0.203 25.7);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.2 0.01 268 / 10%);
+  --input: oklch(0.2 0.01 268 / 12%);
+  --ring: oklch(0.502 0.229 280);
+  --radius: 0.625rem;
+
+  /* signal colour — state, identity, data */
+  --brand: oklch(0.502 0.229 280);
+  --surface-2: oklch(0.976 0.003 264.5);
+  --surface-3: oklch(0.955 0.006 264.5);
+
+  /* the material: a machined top highlight, then a flat hairline */
+  --edge-hi: rgb(255 255 255 / 90%);
+  --edge-mid: rgb(20 22 34 / 8%);
+  --edge-lo: rgb(20 22 34 / 10%);
+  --sheen-top: rgb(255 255 255 / 35%);
+  --grain: rgb(20 22 34 / 1.4%);
+
+  /* umbra + penumbra, tight and tinted — neutral grey reads as dirt on white */
+  --elevation-1: 0 1px 2px rgb(20 22 34 / 10%), 0 2px 6px rgb(20 22 34 / 7%);
+  --elevation-2: 0 2px 4px rgb(20 22 34 / 10%), 0 8px 18px rgb(20 22 34 / 12%);
+  --node-depth: 0 1px 3px rgb(20 22 34 / 12%);
+  --node-depth-lift: 0 6px 14px rgb(20 22 34 / 14%);
+
+  /* ambient light behind the canvas and the landing page */
+  --ambient-1: oklch(0.72 0.11 278);
+  --ambient-2: oklch(1 0 0);
+  --ambient-opacity: 0.3;
+
+  --chart-1: oklch(0.502 0.229 280);
+  --chart-2: oklch(0.601 0.106 218.7);
+  --chart-3: oklch(0.589 0.121 71.6);
+  --chart-4: oklch(0.52 0.15 258);
+  --chart-5: oklch(0.55 0.1 165);
+
+  --canvas: oklch(0.931 0.008 271.3);
+  --node-user: oklch(0.502 0.229 280);
   --node-user-foreground: oklch(0.99 0 0);
-  --node-ai: oklch(0.6 0.11 195);
+  --node-ai: oklch(0.601 0.106 218.7);
   --node-ai-foreground: oklch(0.99 0 0);
-  --node-fork: oklch(0.72 0.15 75);
-  --node-fork-foreground: oklch(0.2 0.02 80);
+  --node-fork: oklch(0.589 0.121 71.6);
+  --node-fork-foreground: oklch(0.99 0 0);
 
   --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.205 0.01 260);
-  --sidebar-primary: oklch(0.481 0.165 282);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.96 0.004 250);
-  --sidebar-accent-foreground: oklch(0.28 0.01 260);
-  --sidebar-border: oklch(0.9 0.006 260);
-  --sidebar-ring: oklch(0.481 0.165 282);
+  --sidebar-foreground: oklch(0.2 0.01 268);
+  --sidebar-primary: oklch(0.178 0.011 268);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.955 0.006 264.5);
+  --sidebar-accent-foreground: oklch(0.28 0.01 268);
+  --sidebar-border: oklch(0.2 0.01 268 / 10%);
+  --sidebar-ring: oklch(0.502 0.229 280);
 }
 
+/* ==========================================================================
+   DARK — graphite tonal surfaces, one disciplined indigo accent.
+   ========================================================================== */
 .dark {
   color-scheme: dark;
-  --background: oklch(0.17 0.006 260);
-  --foreground: oklch(0.93 0.004 250);
-  --card: oklch(0.21 0.007 260);
-  --card-foreground: oklch(0.93 0.004 250);
-  --popover: oklch(0.22 0.007 260);
-  --popover-foreground: oklch(0.93 0.004 250);
-  --primary: oklch(0.62 0.16 282);
+  --background: oklch(0.168 0.009 264.3);
+  --foreground: oklch(0.933 0.009 264.5);
+  --card: oklch(0.222 0.013 264.3);
+  --card-foreground: oklch(0.933 0.009 264.5);
+  --popover: oklch(0.243 0.015 261.7);
+  --popover-foreground: oklch(0.933 0.009 264.5);
+
+  --primary: oklch(0.625 0.184 269.6);
   --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.26 0.008 260);
-  --secondary-foreground: oklch(0.93 0.004 250);
-  --muted: oklch(0.25 0.008 260);
-  --muted-foreground: oklch(0.66 0.008 260);
-  --accent: oklch(0.28 0.01 260);
-  --accent-foreground: oklch(0.93 0.004 250);
-  --destructive: oklch(0.62 0.2 25);
+  --secondary: oklch(0.264 0.016 264.2);
+  --secondary-foreground: oklch(0.933 0.009 264.5);
+  --muted: oklch(0.264 0.016 264.2);
+  --muted-foreground: oklch(0.704 0.022 261.7);
+  --accent: oklch(0.292 0.018 262.2);
+  --accent-foreground: oklch(0.933 0.009 264.5);
+  --destructive: oklch(0.626 0.193 23);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.62 0.16 282);
-  --chart-1: oklch(0.66 0.2 300);
-  --chart-2: oklch(0.72 0.12 195);
-  --chart-3: oklch(0.78 0.15 75);
-  --chart-4: oklch(0.62 0.16 250);
-  --chart-5: oklch(0.68 0.13 160);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 11%);
+  --ring: oklch(0.695 0.16 272.9);
 
-  --canvas: oklch(0.145 0.006 260);
-  --node-user: oklch(0.58 0.2 300);
+  --brand: oklch(0.695 0.16 272.9);
+  --surface-2: oklch(0.264 0.016 264.2);
+  --surface-3: oklch(0.292 0.018 262.2);
+
+  --edge-hi: rgb(255 255 255 / 14%);
+  --edge-mid: rgb(255 255 255 / 7%);
+  --edge-lo: rgb(255 255 255 / 5%);
+  --sheen-top: rgb(255 255 255 / 2.2%);
+  --grain: rgb(255 255 255 / 1.4%);
+
+  --elevation-1: 0 1px 2px rgb(0 0 0 / 60%), 0 3px 7px rgb(0 0 0 / 34%);
+  --elevation-2: 0 2px 4px rgb(0 0 0 / 60%), 0 10px 20px rgb(0 0 0 / 45%);
+  --node-depth: 0 2px 4px rgb(0 0 0 / 50%);
+  --node-depth-lift: 0 8px 16px rgb(0 0 0 / 55%);
+
+  --ambient-1: oklch(0.55 0.16 270);
+  --ambient-2: oklch(0.6 0.09 215);
+  --ambient-opacity: 0.16;
+
+  --chart-1: oklch(0.695 0.16 272.9);
+  --chart-2: oklch(0.682 0.099 212.5);
+  --chart-3: oklch(0.711 0.123 83);
+  --chart-4: oklch(0.62 0.14 258);
+  --chart-5: oklch(0.66 0.1 165);
+
+  --canvas: oklch(0.153 0.007 258.4);
+  --node-user: oklch(0.695 0.16 272.9);
   --node-user-foreground: oklch(0.98 0 0);
-  --node-ai: oklch(0.6 0.1 195);
-  --node-ai-foreground: oklch(0.98 0 0);
-  --node-fork: oklch(0.75 0.15 75);
-  --node-fork-foreground: oklch(0.2 0.02 80);
+  --node-ai: oklch(0.682 0.099 212.5);
+  --node-ai-foreground: oklch(0.16 0.01 215);
+  --node-fork: oklch(0.711 0.123 83);
+  --node-fork-foreground: oklch(0.18 0.02 83);
 
-  --sidebar: oklch(0.19 0.007 260);
-  --sidebar-foreground: oklch(0.93 0.004 250);
-  --sidebar-primary: oklch(0.62 0.16 282);
+  --sidebar: oklch(0.222 0.013 264.3);
+  --sidebar-foreground: oklch(0.933 0.009 264.5);
+  --sidebar-primary: oklch(0.625 0.184 269.6);
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.26 0.008 260);
-  --sidebar-accent-foreground: oklch(0.93 0.004 250);
-  --sidebar-border: oklch(1 0 0 / 9%);
-  --sidebar-ring: oklch(0.62 0.16 282);
+  --sidebar-accent: oklch(0.264 0.016 264.2);
+  --sidebar-accent-foreground: oklch(0.933 0.009 264.5);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.695 0.16 272.9);
 }
 
 @layer base {
@@ -160,10 +221,128 @@
 }
 
 @layer utilities {
+  /* ------------------------------------------------------------------
+     .surface — the material recipe.
+
+     Three layers, in paint order:
+       1. a tight umbra/penumbra shadow (the caller supplies the tonal fill
+          with bg-card / bg-surface-2 / bg-surface-3, so Tailwind's bg-*
+          utilities are never fought over)
+       2. ::before  a fine brushed grain + a top sheen
+       3. ::after   a 1px ring, bright for the first 2px then flat —
+                    reads as a machined edge catching light from above
+
+     Elevation here comes from tone, not glow: raise something by moving it
+     to surface-2 / surface-3, and let the shadow stay tight.
+     ------------------------------------------------------------------ */
+  .surface {
+    position: relative;
+    isolation: isolate;
+    box-shadow: var(--elevation-1);
+  }
+  .surface::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      180deg,
+      var(--edge-hi) 0px,
+      var(--edge-mid) 2px,
+      var(--edge-lo) 45%,
+      var(--edge-lo) 100%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+  .surface::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background:
+      repeating-linear-gradient(90deg, var(--grain) 0 1px, transparent 1px 3px),
+      linear-gradient(180deg, var(--sheen-top), transparent 34%);
+    pointer-events: none;
+  }
+
+  /* Full-height panels carry their own border, so drop the machined ring.
+     Declared after .surface::after, so it wins at equal specificity. */
+  .surface-no-edge::after {
+    display: none;
+  }
+
+  /* Raised variants — tone first, shadow second. */
+  .surface-raised {
+    box-shadow: var(--elevation-2);
+  }
+  .surface-flat {
+    box-shadow: none;
+  }
+
+  /* A canvas node. Pair with .surface. Set --kind to the node's accent colour
+     and the depth is tinted by it — a branch casts teal, a fork casts amber.
+     Neutral grey shadows under a hundred cards look like smudges. */
+  .graph-node {
+    box-shadow:
+      0 1px 1px color-mix(in oklch, var(--kind) 16%, transparent),
+      0 10px 22px -18px color-mix(in oklch, var(--kind) 70%, transparent),
+      var(--node-depth);
+    transition:
+      transform 0.2s ease,
+      box-shadow 0.2s ease,
+      background-color 0.2s ease;
+  }
+  .graph-node:hover {
+    background-color: var(--surface-2);
+    box-shadow:
+      0 2px 3px color-mix(in oklch, var(--kind) 20%, transparent),
+      0 18px 34px -22px color-mix(in oklch, var(--kind) 85%, transparent),
+      var(--node-depth-lift);
+  }
+  /* A fork draws its own dashed ring, so drop the machined edge .surface adds.
+     Declared after .surface::after so it wins at equal specificity. */
+  .graph-node-fork::after {
+    display: none;
+  }
+
+  /* The kind colour as a machined bar along the top edge. */
+  .graph-node-bar {
+    background: linear-gradient(
+      90deg,
+      var(--kind),
+      color-mix(in oklch, var(--kind) 25%, transparent)
+    );
+  }
+
+  /* Ambient light the surfaces sit in. Dimmed hard in dark mode — it is room
+     lighting, not decoration. */
+  .ambient-blob {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(90px);
+    opacity: var(--ambient-opacity);
+    pointer-events: none;
+  }
+  .grain-overlay {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.04;
+  }
+
   .canvas-grid {
     background-image:
-      linear-gradient(to right, color-mix(in oklch, var(--foreground) 6%, transparent) 1px, transparent 1px),
-      linear-gradient(to bottom, color-mix(in oklch, var(--foreground) 6%, transparent) 1px, transparent 1px);
+      linear-gradient(to right, color-mix(in oklch, var(--foreground) 7%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklch, var(--foreground) 7%, transparent) 1px, transparent 1px);
     background-size: 24px 24px;
   }
 }

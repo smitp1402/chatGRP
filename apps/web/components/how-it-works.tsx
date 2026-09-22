@@ -98,7 +98,7 @@ export function HowItWorks() {
   return (
     <section id="how-it-works" className="mx-auto w-full max-w-6xl scroll-mt-20 px-6 py-20">
       <div className="mx-auto max-w-2xl text-center">
-        <p className="text-sm font-medium text-primary">How it works</p>
+        <p className="text-sm font-medium text-brand">How it works</p>
         <h2 className="mt-2 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
           Three steps to a living conversation
         </h2>
@@ -117,13 +117,13 @@ export function HowItWorks() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={viewport}
               transition={{ duration: 0.4, delay: i * 0.1 }}
-              className="flex flex-col rounded-2xl border border-border bg-card p-6"
+              className="surface flex flex-col rounded-xl bg-card p-6"
             >
-              <div className="mb-5 flex h-28 items-center justify-center rounded-xl border border-border bg-background">
+              <div className="mb-5 flex h-28 items-center justify-center rounded-lg border border-border bg-background">
                 <Art />
               </div>
               <div className="flex items-center gap-2">
-                <span className="flex size-6 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                <span className="flex size-6 items-center justify-center rounded-md bg-brand text-xs font-semibold text-white">
                   {step.n}
                 </span>
                 <h3 className="text-sm font-semibold text-foreground">{step.title}</h3>
