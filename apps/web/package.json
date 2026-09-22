@@ -21,7 +21,7 @@
     "@xyflow/react": "^12.11.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "dockview-react": "^7.0.2",
+    "dockview-react": "^8.3.1",
     "framer-motion": "^12.42.2",
     "lucide-react": "^1.24.0",
     "next": "16.2.10",
