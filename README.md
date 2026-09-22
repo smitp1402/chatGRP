@@ -66,16 +66,26 @@ traversal rather than a filter someone has to remember to apply.
 ### A `/generate` request
 
 1. Verify the access token against the cached JWKS.
-2. Check the Postgres-backed rate limit.
-3. Confirm the user's plan allows the requested model.
-4. **Reserve credits atomically**, before any provider call.
-5. Walk `parent_id` for context; trim to `MAX_INPUT_TOKENS`.
-6. Stream the completion back over SSE, persisting tokens as they arrive.
-7. On success settle the reservation; on failure or cancel, **refund it**.
+2. **Concurrently:** the Postgres-backed rate limit, session ownership, and
+   whether the plan allows the requested model.
+3. **Reserve credits atomically**, before any provider call.
+4. Build the branch context; trim to `MAX_INPUT_TOKENS`.
+5. Stream the completion back over SSE, persisting tokens as they arrive.
+6. On success settle the reservation; on failure or cancel, **refund it**.
 
-Steps 4 and 7 are the reason credits are reserved rather than billed
+Steps 3 and 6 are the reason credits are reserved rather than billed
 afterwards: a provider timeout mid-stream must not charge the user, and two
 concurrent requests must not both spend the last credit.
+
+Step 2's three reads are independent, so they go out together rather than
+paying three serial round trips. They run on threads: `supabase-py` is
+synchronous, and calling it straight from an async handler blocks the event
+loop for every other request on the worker.
+
+Step 4 is three queries whatever the branch looks like — the node graph, every
+message on the path, every attachment on those messages. It used to be one
+query per node plus one per message, which made a long conversation
+progressively slower to answer.
 
 ---
 
@@ -215,6 +225,16 @@ Worth stating plainly rather than leaving to be discovered:
   signed-out or banned user stays valid until expiry (default 1 hour). That
   tradeoff is documented in [`auth.py`](apps/ai/app/auth.py).
 - **Cold starts.** `min-instances: 0` means the first request after an idle
-  period waits 3–8 seconds.
+  period waits 3–8 seconds. The assistant bubble names the stage it is in
+  rather than showing one static label, so the wait is legible, but it is not
+  shorter. A warm instance costs ~$6/month and is one flag away.
 - **Attachments on older turns are summarized, not re-sent**, to keep long
   branches affordable. The model knows a file was there but cannot re-read it.
+- **Cancels are noticed by polling**, every 3 seconds, so stopping a stream can
+  take that long to take effect. `LISTEN/NOTIFY` would make it instant and
+  remove the polling, but it needs a direct Postgres connection — and Supabase's
+  direct host is IPv6-only, which Cloud Run cannot reach without Direct VPC
+  egress on a dual-stack subnet. Not worth that for ten queries a stream.
+- **Stripe is in test mode.** The integration is complete and
+  signature-verified, but the account is not activated, because there are no
+  users to charge.
