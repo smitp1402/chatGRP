@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@v4
 
       # Reads `packageManager` from package.json, so CI and local stay in step.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v4
         with:
@@ -141,7 +141,7 @@ jobs:
       - if: steps.gate.outputs.run == 'true'
         uses: actions/checkout@v4
       - if: steps.gate.outputs.run == 'true'
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
       - if: steps.gate.outputs.run == 'true'
         uses: actions/setup-node@v4
         with:
