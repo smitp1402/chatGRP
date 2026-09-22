@@ -24,9 +24,12 @@ class FakeResult:
 
 
 class FakeQuery:
-    def __init__(self, tables: dict[str, list[dict]], name: str) -> None:
+    def __init__(
+        self, tables: dict[str, list[dict]], name: str, log: list[tuple[str, str]] | None = None
+    ) -> None:
         self._tables = tables
         self._name = name
+        self._log = log if log is not None else []
         self._op = "select"
         self._payload: object = None
         self._filters: list[Callable[[dict], bool]] = []
@@ -77,6 +80,9 @@ class FakeQuery:
         return [r for r in rows if all(f(r) for f in self._filters)]
 
     def execute(self) -> FakeResult:
+        # Every execute() is one network round trip against the real client.
+        # Counting them is how tests catch an N+1 reappearing.
+        self._log.append((self._name, self._op))
         rows = self._tables.setdefault(self._name, [])
 
         if self._op == "insert":
@@ -122,9 +128,10 @@ class FakeDB:
         self.tables: dict[str, list[dict]] = {}
         self.rpc_handlers: dict[str, RpcHandler] = {}
         self.rpc_calls: list[tuple[str, dict]] = []
+        self.queries: list[tuple[str, str]] = []
 
     def table(self, name: str) -> FakeQuery:
-        return FakeQuery(self.tables, name)
+        return FakeQuery(self.tables, name, self.queries)
 
     def rpc(self, name: str, params: dict | None = None) -> _Executable:
         params = params or {}

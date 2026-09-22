@@ -74,3 +74,65 @@ def test_cycle_in_parent_chain_does_not_hang(fake_db):
     ctx = build_context(SESSION_A, b)
 
     assert len(ctx) == 2
+
+
+def _branch(fake_db, depth: int) -> str:
+    """A straight chain `depth` nodes deep, two messages and one file per node."""
+    parent = None
+    for i in range(depth):
+        parent = _node(fake_db, parent)
+        mid = _say(fake_db, parent, "user", f"q{i}", f"2026-01-01T00:00:{i:02d}")
+        fake_db.table("attachments").insert(
+            {"message_id": mid, "session_id": SESSION_A, "file_name": f"f{i}.pdf"}
+        ).execute()
+        _say(fake_db, parent, "assistant", f"a{i}", f"2026-01-01T00:01:{i:02d}")
+    return parent
+
+
+def test_round_trips_do_not_grow_with_branch_depth(fake_db):
+    """The whole context must load in a fixed number of queries.
+
+    Iowa -> Oregon is ~40ms per round trip, so a query per node (and another
+    per message) made a long branch progressively slower to answer. Depth must
+    not change the count.
+    """
+    shallow = _branch(fake_db, 2)
+    fake_db.queries.clear()
+    build_context(SESSION_A, shallow)
+    shallow_trips = len(fake_db.queries)
+
+    deep = _branch(fake_db, 12)
+    fake_db.queries.clear()
+    build_context(SESSION_A, deep)
+    deep_trips = len(fake_db.queries)
+
+    assert shallow_trips == deep_trips, (
+        f"depth changed the query count: {shallow_trips} -> {deep_trips}"
+    )
+    assert deep_trips <= 3, f"expected nodes+messages+attachments, got {fake_db.queries}"
+
+
+def test_deep_branch_still_reads_root_to_parent_in_order(fake_db):
+    """Batching must not disturb ordering: root first, user before assistant."""
+    leaf = _branch(fake_db, 5)
+
+    ctx = build_context(SESSION_A, leaf)
+
+    assert [m["role"] for m in ctx] == ["user", "assistant"] * 5
+    assert ctx[0]["content"].startswith("q0")
+    assert ctx[1]["content"] == "a0"
+    assert ctx[-1]["content"] == "a4"
+
+
+def test_batched_attachments_stay_on_their_own_message(fake_db):
+    """One query for every file must not smear notes across messages."""
+    leaf = _branch(fake_db, 3)
+
+    ctx = build_context(SESSION_A, leaf)
+    notes = [m["content"] for m in ctx if "[attached earlier:" in m["content"]]
+
+    assert notes == [
+        "q0\n[attached earlier: f0.pdf]",
+        "q1\n[attached earlier: f1.pdf]",
+        "q2\n[attached earlier: f2.pdf]",
+    ]
