@@ -395,6 +395,10 @@ Checklist:
 
 ## 7. Deploy (Supabase ✅ already done → Railway → Vercel → Cloudflare)
 
+> **Current state:** the AI service runs on **Google Cloud Run**, not Railway. Live
+> URLs, dashboards and where every setting is configured are in
+> [DEPLOYMENT.md](./DEPLOYMENT.md). The steps below are the original plan.
+
 ### 7a. Railway (apps/ai) — deploy this BEFORE Vercel
 The web app needs Railway's URL, so Railway goes first.
 ```powershell
