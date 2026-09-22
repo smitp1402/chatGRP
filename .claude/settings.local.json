@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(python -c ' *)",
-      "Bash(python update_prd.py)"
-    ]
-  }
-}

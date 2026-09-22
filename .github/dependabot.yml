@@ -1,0 +1,26 @@
+# Weekly dependency updates, grouped so one PR covers a whole ecosystem
+# instead of twenty. Security updates still arrive individually and at once.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: pip
+    directory: /apps/ai
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      pip-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

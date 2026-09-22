@@ -15,6 +15,7 @@ import {
 } from '@chatgrp/shared'
 import { ANALYTICS_EVENTS, track } from '@/lib/analytics'
 import { AttachmentTray } from '@/components/chat/attachment-tray'
+import { Markdown } from '@/components/chat/markdown'
 import { SentAttachments } from '@/components/chat/sent-attachments'
 import {
   deleteAttachment,
@@ -526,7 +527,11 @@ function AiBubble({
   return (
     <div className="flex flex-col items-start gap-1">
       <div className="max-w-[90%] rounded-2xl rounded-bl-sm border border-border bg-card px-3 py-2 text-[13px] leading-relaxed text-card-foreground">
-        {text || (streaming ? <span className="text-muted-foreground">Thinking…</span> : null)}
+        {text ? (
+          <Markdown text={text} />
+        ) : streaming ? (
+          <span className="text-muted-foreground">Thinking…</span>
+        ) : null}
         {streaming && text && <span className="ml-0.5 inline-block animate-pulse">▋</span>}
       </div>
       {model && (

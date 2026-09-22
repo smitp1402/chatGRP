@@ -24,7 +24,7 @@ pnpm dev:web    # http://localhost:3000
 pnpm dev:ai     # http://localhost:8000 — required for /generate
 ```
 
-Environment variables go in `apps/web/.env.local`; see `SETUP.md` at the repo
+Environment variables go in `apps/web/.env.local`; see the README at the repo
 root for the full list.
 
 ## Checks
