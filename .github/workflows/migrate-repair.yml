@@ -1,0 +1,80 @@
+name: Repair migration history
+
+# One-time reconciliation, run by hand.
+#
+# Every migration up to now was applied through the Supabase SQL editor, so the
+# schema is current but `supabase_migrations.schema_migrations` - the table the
+# CLI reads to decide what still needs running - is empty. `db push` would
+# therefore start at 0001 and fail on tables that already exist.
+#
+# `migration repair --status applied` writes the history rows WITHOUT running
+# any SQL, which is exactly what is needed: tell the CLI these are done, change
+# nothing about the schema.
+#
+# Run this once, with the default list, before the first automatic push. After
+# that the migrate workflow keeps the history in step on its own.
+#
+# It is also the tool for the rarer case where a migration was applied by hand
+# in an emergency: repair that one version afterwards so the CLI agrees.
+
+on:
+  workflow_dispatch:
+    inputs:
+      versions:
+        description: 'Space-separated versions to mark applied (leading digits of the filename)'
+        required: true
+        default: '0001 0002 0003 0004 0005 0006 0007 0008 0009 0010 0011 0012'
+      status:
+        description: 'applied = record it as done; reverted = remove the record'
+        required: true
+        default: 'applied'
+        type: choice
+        options: [applied, reverted]
+
+concurrency:
+  group: migrate # shares a lane with the push workflow; never run both at once
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_ID }}"
+
+      - name: Status before
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase migration list
+
+      # One at a time, so a version that is already recorded fails loudly on its
+      # own line instead of being lost in a batch.
+      - name: Repair
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          for version in ${{ github.event.inputs.versions }}; do
+            echo "::group::repair $version --status ${{ github.event.inputs.status }}"
+            supabase migration repair --status "${{ github.event.inputs.status }}" "$version"
+            echo "::endgroup::"
+          done
+
+      - name: Status after
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase migration list
