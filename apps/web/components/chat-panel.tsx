@@ -16,6 +16,7 @@ import {
 import { ANALYTICS_EVENTS, track } from '@/lib/analytics'
 import { AttachmentTray } from '@/components/chat/attachment-tray'
 import { Markdown } from '@/components/chat/markdown'
+import { ThinkingIndicator, type StreamPhase } from '@/components/chat/thinking-indicator'
 import { SentAttachments } from '@/components/chat/sent-attachments'
 import {
   deleteAttachment,
@@ -59,6 +60,9 @@ interface ChatPanelProps {
   allowFork?: boolean
 }
 
+/** How long to wait for the `node` event before blaming a cold start. */
+const COLD_START_HINT_MS = 4000
+
 export function ChatPanel({ allowFork = true }: ChatPanelProps) {
   const activeId = useSessionStore((s) => s.activeId)
   const nodes = useCanvasStore((s) => s.nodes)
@@ -77,6 +81,7 @@ export function ChatPanel({ allowFork = true }: ChatPanelProps) {
   const [forking, setForking] = useState(false)
   const [pendingQuestion, setPendingQuestion] = useState('')
   const [streamText, setStreamText] = useState('')
+  const [phase, setPhase] = useState<StreamPhase>('connecting')
   const [libraryOpen, setLibraryOpen] = useState(false)
   // Sticky: once opened, keep the component mounted so reopening is instant.
   const [libraryLoaded, setLibraryLoaded] = useState(false)
@@ -97,6 +102,16 @@ export function ChatPanel({ allowFork = true }: ChatPanelProps) {
       : availableModels[0].id
 
   const activeModel = modelById(model)
+
+  // Cloud Run runs with min-instances 0, so the first request after an idle
+  // period pays a 3-8s container boot. If the node event has not arrived by
+  // then, a cold start is the overwhelmingly likely reason - say so instead
+  // of leaving the user watching a silent bubble.
+  useEffect(() => {
+    if (!sending || phase !== 'connecting') return
+    const timer = setTimeout(() => setPhase('waking'), COLD_START_HINT_MS)
+    return () => clearTimeout(timer)
+  }, [sending, phase])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -186,6 +201,7 @@ export function ChatPanel({ allowFork = true }: ChatPanelProps) {
     const uploaded: AttachmentInput[] = ready.map((a) => a.uploaded!)
 
     setSending(true)
+    setPhase('connecting')
     setPendingQuestion(message)
     setStreamText('')
     setDraft('')
@@ -201,6 +217,10 @@ export function ChatPanel({ allowFork = true }: ChatPanelProps) {
         attachments: uploaded,
       },
       {
+        // The node event is the first proof the service is awake and the
+        // request passed auth, quota and ownership. Everything after this
+        // point is the provider, so stop blaming the connection.
+        onNode: () => setPhase('thinking'),
         onToken: (chunk) => setStreamText((prev) => prev + chunk),
         onDone: async (nodeId) => {
           // Captured on success only — a failed generation is not activation.
@@ -301,7 +321,13 @@ export function ChatPanel({ allowFork = true }: ChatPanelProps) {
         {sending && (
           <div className="space-y-4">
             <UserBubble text={pendingQuestion} />
-            <AiBubble text={streamText} modelId={model} credits={activeModel?.credits ?? 0} streaming />
+            <AiBubble
+              text={streamText}
+              modelId={model}
+              credits={activeModel?.credits ?? 0}
+              streaming
+              phase={phase}
+            />
           </div>
         )}
 
@@ -517,11 +543,13 @@ function AiBubble({
   modelId,
   credits,
   streaming = false,
+  phase = 'thinking',
 }: {
   text: string
   modelId: ModelId | null
   credits: number
   streaming?: boolean
+  phase?: StreamPhase
 }) {
   const model = modelId ? modelById(modelId) : undefined
   return (
@@ -530,7 +558,7 @@ function AiBubble({
         {text ? (
           <Markdown text={text} />
         ) : streaming ? (
-          <span className="text-muted-foreground">Thinking…</span>
+          <ThinkingIndicator phase={phase} />
         ) : null}
         {streaming && text && <span className="ml-0.5 inline-block animate-pulse">▋</span>}
       </div>
