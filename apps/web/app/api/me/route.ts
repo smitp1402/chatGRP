@@ -26,13 +26,28 @@ export async function GET() {
   const profile = data as Record<string, unknown> | null
   const plan = (profile?.plan ?? "free") as Plan
 
-  const now = new Date()
-  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString()
-  const { data: ledger } = await supabase
-    .from("usage_ledger")
-    .select("credits_used")
-    .gte("created_at", monthStart)
-  const used = (ledger ?? []).reduce((sum, r) => sum + (r.credits_used as number), 0)
+  // Summed in Postgres (migration 0011). Selecting the rows and adding them up
+  // here meant moving one row per generation to produce one number, on an
+  // endpoint that runs on every page load.
+  //
+  // The function reads auth.uid() itself and runs security invoker, so it can
+  // only ever total the caller's own rows.
+  const { data: usedRaw, error: usedError } = await supabase.rpc("monthly_credits_used")
+
+  // Before 0011 is applied the function does not exist. Falling back keeps the
+  // page working rather than reporting zero usage, which would wrongly tell a
+  // capped user they have their whole allowance left.
+  let used = typeof usedRaw === "number" ? usedRaw : 0
+  if (usedError) {
+    const now = new Date()
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString()
+    const { data: ledger } = await supabase
+      .from("usage_ledger")
+      .select("credits_used")
+      .gte("created_at", monthStart)
+    used = (ledger ?? []).reduce((sum, r) => sum + (r.credits_used as number), 0)
+  }
+
   const cap = PLAN_CREDITS[plan]
 
   return ok({
