@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Handle, NodeToolbar, Position, type NodeProps } from '@xyflow/react'
 import { ChevronDown, ChevronRight, Paperclip, Star, Trash2 } from 'lucide-react'
 import { modelById, type ModelId } from '@chatgrp/shared'
@@ -61,15 +61,28 @@ function GraphNodeComponent({ id, data, selected }: NodeProps) {
   return (
     <div
       className={cn(
-        'flex w-[220px] flex-col rounded-xl border-2 bg-card text-left shadow-sm transition-all',
-        'hover:-translate-y-0.5 hover:shadow-md',
-        d.isFork ? 'border-dashed' : 'border-solid',
+        'surface graph-node flex w-[220px] flex-col rounded-lg bg-card text-left',
+        'hover:-translate-y-0.5',
+        // A fork carries its own dashed ring, so suppress the machined edge
+        // .surface would otherwise draw and avoid a double border.
+        d.isFork && 'graph-node-fork border border-dashed',
         selected && 'ring-2 ring-ring ring-offset-2 ring-offset-canvas',
       )}
-      style={{ borderColor: accent }}
+      style={
+        {
+          '--kind': accent,
+          borderColor: d.isFork
+            ? `color-mix(in oklch, ${accent} 55%, transparent)`
+            : undefined,
+        } as CSSProperties
+      }
       onMouseEnter={() => schedulePeek(true)}
       onMouseLeave={() => schedulePeek(false)}
     >
+      <span
+        aria-hidden
+        className="graph-node-bar absolute inset-x-0 top-0 h-0.5 rounded-t-[inherit]"
+      />
       {answer && (
         <NodeToolbar
           isVisible={peeking}
@@ -80,9 +93,10 @@ function GraphNodeComponent({ id, data, selected }: NodeProps) {
           onMouseLeave={() => schedulePeek(false)}
         >
           <div
-            className="w-[320px] rounded-xl border border-border bg-popover p-3 text-left shadow-lg"
-            style={{ borderTopColor: accent, borderTopWidth: 2 }}
+            className="surface surface-raised relative w-[320px] overflow-hidden rounded-lg bg-popover p-3 text-left"
+            style={{ '--kind': accent } as CSSProperties}
           >
+            <span aria-hidden className="graph-node-bar absolute inset-x-0 top-0 h-0.5" />
             <p className="mb-1.5 font-mono text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
               Answer
             </p>
@@ -135,7 +149,7 @@ function GraphNodeComponent({ id, data, selected }: NodeProps) {
             }}
             className={cn(
               'flex size-5 items-center justify-center rounded transition-colors',
-              d.starred ? 'text-amber-400' : 'text-muted-foreground/50 hover:text-muted-foreground',
+              d.starred ? 'text-node-fork' : 'text-muted-foreground/50 hover:text-muted-foreground',
             )}
           >
             <Star className="size-3.5" fill={d.starred ? 'currentColor' : 'none'} />
@@ -184,7 +198,7 @@ function GraphNodeComponent({ id, data, selected }: NodeProps) {
             e.stopPropagation()
             d.onToggleCollapse(id)
           }}
-          className="absolute -bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-0.5 rounded-full border border-border bg-card px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground shadow-sm hover:text-foreground"
+          className="absolute -bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-0.5 rounded-full border border-border bg-surface-2 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground shadow-[var(--elevation-1)] transition-colors hover:bg-surface-3 hover:text-foreground"
         >
           {d.collapsed ? <ChevronRight className="size-3" /> : <ChevronDown className="size-3" />}
           {d.childCount}

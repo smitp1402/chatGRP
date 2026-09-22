@@ -153,7 +153,7 @@ function Canvas({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search nodes…"
-            className="h-8 w-52 rounded-lg border border-border bg-card/90 pl-8 pr-2 text-xs text-foreground shadow-sm backdrop-blur placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+            className="h-8 w-52 rounded-lg border border-border bg-surface-2/90 pl-8 pr-2 text-xs text-foreground shadow-[var(--elevation-1)] backdrop-blur placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </form>
       </Panel>

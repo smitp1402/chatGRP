@@ -23,7 +23,7 @@ export default function PricingPage() {
         {/* Header */}
         <section className="mx-auto w-full max-w-6xl px-6 pb-8 pt-16 sm:pt-20">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-sm font-medium text-primary">Pricing</p>
+            <p className="text-sm font-medium text-brand">Pricing</p>
             <h1 className="mt-2 text-balance text-4xl font-semibold tracking-tight sm:text-5xl">
               Pricing that scales with your ideas
             </h1>
@@ -65,7 +65,7 @@ export default function PricingPage() {
 
         {/* CTA */}
         <section className="mx-auto w-full max-w-6xl px-6 pb-20">
-          <div className="flex flex-col items-center gap-5 rounded-3xl border border-border bg-card px-6 py-14 text-center">
+          <div className="surface flex flex-col items-center gap-5 rounded-2xl bg-card px-6 py-14 text-center">
             <h2 className="max-w-xl text-balance text-3xl font-semibold tracking-tight">
               Ready to chat in graphs?
             </h2>

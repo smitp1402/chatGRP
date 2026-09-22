@@ -4,7 +4,7 @@ const SESSIONS = ["Distributed systems", "RAG evaluation", "Pricing model", "DB 
 
 export function HeroPreview() {
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
+    <div className="surface surface-raised overflow-hidden rounded-xl bg-card">
       {/* Window chrome */}
       <div className="flex items-center gap-2 border-b border-border bg-background px-4 py-2.5">
         <span className="size-2.5 rounded-full bg-node-user/70" />
@@ -71,7 +71,7 @@ export function HeroPreview() {
         {/* Chat rail */}
         <aside className="flex flex-col border-l border-border bg-card p-3">
           <div className="mb-3 flex items-center gap-1.5 text-xs font-medium text-foreground">
-            <GitBranch className="size-3.5 text-primary" />
+            <GitBranch className="size-3.5 text-brand" />
             Node thread
           </div>
           <div className="flex flex-col gap-2.5">
@@ -84,7 +84,7 @@ export function HeroPreview() {
           </div>
           <div className="mt-auto flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5">
             <span className="flex-1 text-[11px] text-muted-foreground">Reply to this node…</span>
-            <Send className="size-3.5 text-primary" />
+            <Send className="size-3.5 text-brand" />
           </div>
         </aside>
       </div>
