@@ -55,7 +55,13 @@ app.add_middleware(
 
 # How often a running stream re-reads its attempt row to notice a cancel.
 # Polling (rather than in-process signalling) works across Cloud Run instances.
-CANCEL_POLL_SECONDS = 1.0
+#
+# Every tick is a round trip to us-west-2 and almost every one answers "no" -
+# a 30s answer cost 30 queries to catch a click that usually never comes, per
+# concurrent stream. Three seconds costs a third of that and delays a cancel
+# by at most two, which nobody perceives mid-stream. The real fix is to stop
+# asking: LISTEN/NOTIFY would let the cancel endpoint wake the stream.
+CANCEL_POLL_SECONDS = 3.0
 
 # Statuses a cancel request is allowed to interrupt.
 ACTIVE_STATUSES = ("pending", "streaming")
@@ -110,9 +116,28 @@ def health() -> dict:
 async def generate(body: GenerateRequest, user_id: str = Depends(verify_user)):
     """Create a node (reply to parent_id), then stream the assistant answer."""
     tag_user(user_id)
-    check_rate_limit(user_id)
 
-    if not session_belongs_to(body.session_id, user_id):
+    # Rate limit, ownership and plan are three independent reads of three
+    # different tables. Run at once they cost one round trip instead of three
+    # (~40ms each: the service is in us-central1, the database in us-west-2).
+    #
+    # to_thread matters as much as the concurrency: supabase-py is synchronous,
+    # so calling it directly from this async handler blocks the event loop for
+    # every other request on the worker.
+    rate, owns, plan_or_error = await asyncio.gather(
+        asyncio.to_thread(check_rate_limit, user_id),
+        asyncio.to_thread(session_belongs_to, body.session_id, user_id),
+        asyncio.to_thread(assert_plan_allows, user_id, body.model_id),
+        return_exceptions=True,
+    )
+
+    # Resolve in a fixed order. Without this the error a client sees would
+    # depend on which query happened to finish first.
+    if isinstance(rate, BaseException):
+        raise rate
+    if isinstance(owns, BaseException):
+        raise owns
+    if not owns:
         raise HTTPException(status_code=403, detail="Session not found")
 
     files = [a.model_dump() for a in body.attachments]
@@ -126,7 +151,12 @@ async def generate(body: GenerateRequest, user_id: str = Depends(verify_user)):
     except att.AttachmentError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    plan = assert_plan_allows(user_id, body.model_id)
+    # Checked above, alongside the rate limit and ownership; raised here so a
+    # plan failure still reports after the 422s, exactly as it did when these
+    # ran one after another.
+    if isinstance(plan_or_error, BaseException):
+        raise plan_or_error
+    plan = plan_or_error
 
     # Reserve before anything is persisted. Postgres serialises this per user,
     # so parallel requests cannot overshoot the cap (migration 0008).

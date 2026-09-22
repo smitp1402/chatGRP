@@ -123,3 +123,62 @@ def test_bookkeeping_failure_after_full_answer_refunds(client, fake_db, monkeypa
 
     assert events[-1][0] == "error"
     assert fake_db.rows("usage_ledger") == []
+
+
+# ── precedence of the concurrent pre-flight checks ───────────────────────────
+#
+# Rate limit, ownership and plan now run together under asyncio.gather rather
+# than one after another. Whichever query finishes first must not decide which
+# error the client sees, so each of these fails two checks at once and pins the
+# status the caller gets.
+
+
+def _deny_rate_limit(fake_db) -> None:
+    fake_db.rpc_handlers["hit_rate_limit"] = lambda _db, _p: {
+        "allowed": False,
+        "retry_after": 30,
+    }
+
+
+def test_rate_limit_is_reported_before_a_foreign_session(client, fake_db):
+    _deny_rate_limit(fake_db)
+
+    # SESSION_B belongs to nobody; ownership would also fail.
+    res = _generate(client, session_id="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+
+    assert res.status_code == 429
+
+
+def test_rate_limit_is_reported_before_a_forbidden_model(client, fake_db):
+    _deny_rate_limit(fake_db)
+
+    res = _generate(client, model_id="claude-opus")  # Pro-only, user is free
+
+    assert res.status_code == 429
+
+
+def test_foreign_session_is_reported_before_a_forbidden_model(client):
+    res = _generate(
+        client,
+        session_id="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+        model_id="claude-opus",
+    )
+
+    assert res.status_code == 403
+    assert "Session not found" in res.json()["detail"]
+
+
+def test_empty_message_is_reported_before_a_forbidden_model(client):
+    # The 422 is pure validation and used to run before the plan lookup; the
+    # plan result is now computed earlier but must still be raised after it.
+    res = _generate(client, message="   ", model_id="claude-opus")
+
+    assert res.status_code == 422
+
+
+def test_a_forbidden_model_still_reports_403_on_its_own(client, fake_db):
+    res = _generate(client, model_id="claude-opus")
+
+    assert res.status_code == 403
+    assert "Pro" in res.json()["detail"]
+    assert fake_db.rows("usage_ledger") == []  # nothing reserved
