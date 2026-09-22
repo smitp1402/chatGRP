@@ -6,6 +6,7 @@ import {
   Loader2,
   MoreHorizontal,
   Pencil,
+  PanelLeftOpen,
   Plus,
   Search,
   Sparkles,
@@ -25,6 +26,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { ThemeCycle } from '@/components/theme-cycle'
+import { ResizeHandle } from '@/components/layout/resize-handle'
+import { usePanelWidth } from '@/lib/use-panel-width'
 import { useSessionStore } from '@/lib/stores/session-store'
 import { useMeStore } from '@/lib/stores/me-store'
 import { relativeTime, sessionGroup, type SessionGroupLabel } from '@/lib/time'
@@ -39,6 +42,8 @@ export function AppSidebar() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [email, setEmail] = useState<string | null>(null)
+  const sidebarRef = useRef<HTMLElement | null>(null)
+  const panel = usePanelWidth(sidebarRef, 'chatgrp:sidebar-width')
 
   // Sessions + plan are loaded by the app page (so it works even when this
   // sidebar is hidden by a layout preset). We just render the store here.
@@ -104,99 +109,164 @@ export function AppSidebar() {
   const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1)
 
   return (
-    <aside className="surface surface-flat surface-no-edge relative z-10 flex h-full w-56 shrink-0 flex-col rounded-none border-r border-sidebar-border bg-sidebar">
-      <div className="flex h-14 items-center px-3">
-        <Link href="/app" aria-label="ChatGRP home">
-          <Logo />
-        </Link>
-      </div>
-
-      <div className="flex flex-col gap-2 px-3 pb-2">
-        <button
-          type="button"
-          onClick={handleNew}
-          disabled={busy}
-          className="flex h-9 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
-        >
-          {busy ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-          New session
-        </button>
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search sessions"
-            className="h-8 w-full rounded-lg border border-input bg-background pl-8 pr-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-        </div>
-      </div>
-
-      <nav className="flex-1 overflow-y-auto px-2 pb-2">
-        {loading && sessions.length === 0 ? (
-          <SidebarSkeleton />
-        ) : grouped.length === 0 ? (
-          <p className="px-2 py-6 text-center text-xs text-muted-foreground">
-            {query ? 'No sessions found' : 'No sessions yet — create one to start.'}
-          </p>
-        ) : (
-          grouped.map(({ group, items }) => (
-            <SessionGroup key={group} label={group}>
-              {items.map((s) => (
-                <SessionItem
-                  key={s.id}
-                  session={s}
-                  active={s.id === activeId}
-                  editing={s.id === editingId}
-                  onSelect={() => setActive(s.id)}
-                  onStartRename={() => setEditingId(s.id)}
-                  onCommitRename={(name) => handleRename(s.id, name)}
-                  onDelete={() => handleDelete(s.id)}
-                />
-              ))}
-            </SessionGroup>
-          ))
-        )}
-      </nav>
-
-      <div className="border-t border-sidebar-border p-3">
-        <Link
-          href="/app/billing"
-          className="mb-3 block rounded-lg border border-sidebar-border bg-card/50 p-2.5 transition-colors hover:bg-accent"
-        >
-          <div className="mb-1.5 flex items-center justify-between text-xs">
-            <span className="font-medium text-foreground">Credits</span>
-            <span className="font-mono text-muted-foreground tabular-nums">
-              {creditsUsed.toLocaleString()}/{creditsCap.toLocaleString()}
-            </span>
-          </div>
-          <Progress value={pct} className="h-1.5" />
-        </Link>
-
-        <div className="flex items-center gap-1">
+    <aside
+      ref={sidebarRef}
+      style={{ width: panel.width }}
+      className={cn(
+        'surface surface-flat surface-no-edge relative z-10 flex h-full shrink-0 flex-col rounded-none border-r border-sidebar-border bg-sidebar',
+        // Animate deliberate changes only: never mid-drag (the panel would lag
+        // the pointer) and never on first paint (it would visibly slide in from
+        // the default width to the stored one).
+        !panel.dragging && panel.hydrated && 'transition-[width] duration-200 ease-out',
+      )}
+    >
+      {panel.collapsed ? (
+        <div className="flex flex-1 flex-col items-center gap-2 py-3">
+          <Link href="/app" aria-label="ChatGRP home" className="mb-1">
+            <Logo showWordmark={false} />
+          </Link>
+          <button
+            type="button"
+            onClick={panel.toggle}
+            title="Expand sidebar"
+            aria-label="Expand sidebar"
+            className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <PanelLeftOpen className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={handleNew}
+            disabled={busy}
+            title="New session"
+            aria-label="New session"
+            className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+          >
+            {busy ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          </button>
+          <div className="flex-1" />
+          <ThemeCycle />
           <Link
             href="/app/settings"
-            className="flex min-w-0 flex-1 items-center gap-2 rounded-md p-1 transition-colors hover:bg-accent"
+            aria-label="Account settings"
+            title={email ?? 'Your account'}
+            className="rounded-md p-1 transition-colors hover:bg-accent"
           >
             <Avatar className="size-8">
-              <AvatarImage src="/user-avatar.png" alt="Account" />
+              <AvatarImage src="/user-avatar.png" alt="" />
               <AvatarFallback className="bg-node-user text-node-user-foreground text-xs">
                 {(email?.[0] ?? 'U').toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium text-foreground">
-                {email ?? 'Your account'}
-              </p>
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-px font-mono text-[10px] font-medium text-primary">
-                <Sparkles className="size-2.5" />
-                {planLabel}
-              </span>
-            </div>
           </Link>
-          <ThemeCycle />
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="flex h-14 items-center px-3">
+            <Link href="/app" aria-label="ChatGRP home">
+              <Logo />
+            </Link>
+          </div>
+
+          <div className="flex flex-col gap-2 px-3 pb-2">
+            <button
+              type="button"
+              onClick={handleNew}
+              disabled={busy}
+              className="flex h-9 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+            >
+              {busy ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+              New session
+            </button>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search sessions"
+                className="h-8 w-full rounded-lg border border-input bg-background pl-8 pr-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
+          </div>
+
+          <nav className="flex-1 overflow-y-auto px-2 pb-2">
+            {loading && sessions.length === 0 ? (
+              <SidebarSkeleton />
+            ) : grouped.length === 0 ? (
+              <p className="px-2 py-6 text-center text-xs text-muted-foreground">
+                {query ? 'No sessions found' : 'No sessions yet — create one to start.'}
+              </p>
+            ) : (
+              grouped.map(({ group, items }) => (
+                <SessionGroup key={group} label={group}>
+                  {items.map((s) => (
+                    <SessionItem
+                      key={s.id}
+                      session={s}
+                      active={s.id === activeId}
+                      editing={s.id === editingId}
+                      onSelect={() => setActive(s.id)}
+                      onStartRename={() => setEditingId(s.id)}
+                      onCommitRename={(name) => handleRename(s.id, name)}
+                      onDelete={() => handleDelete(s.id)}
+                    />
+                  ))}
+                </SessionGroup>
+              ))
+            )}
+          </nav>
+
+          <div className="border-t border-sidebar-border p-3">
+            <Link
+              href="/app/billing"
+              className="mb-3 block rounded-lg border border-sidebar-border bg-card/50 p-2.5 transition-colors hover:bg-accent"
+            >
+              <div className="mb-1.5 flex items-center justify-between text-xs">
+                <span className="font-medium text-foreground">Credits</span>
+                <span className="font-mono text-muted-foreground tabular-nums">
+                  {creditsUsed.toLocaleString()}/{creditsCap.toLocaleString()}
+                </span>
+              </div>
+              <Progress value={pct} className="h-1.5" />
+            </Link>
+
+            <div className="flex items-center gap-1">
+              <Link
+                href="/app/settings"
+                className="flex min-w-0 flex-1 items-center gap-2 rounded-md p-1 transition-colors hover:bg-accent"
+              >
+                <Avatar className="size-8">
+                  <AvatarImage src="/user-avatar.png" alt="Account" />
+                  <AvatarFallback className="bg-node-user text-node-user-foreground text-xs">
+                    {(email?.[0] ?? 'U').toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium text-foreground">
+                    {email ?? 'Your account'}
+                  </p>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-px font-mono text-[10px] font-medium text-primary">
+                    <Sparkles className="size-2.5" />
+                    {planLabel}
+                  </span>
+                </div>
+              </Link>
+              <ThemeCycle />
+            </div>
+          </div>
+        </>
+      )}
+
+      <ResizeHandle
+        width={panel.width}
+        min={panel.bounds.min}
+        max={panel.bounds.max}
+        dragging={panel.dragging}
+        label="Resize sidebar"
+        onPointerDown={panel.startDrag}
+        onKeyDown={panel.onKeyDown}
+        onDoubleClick={panel.toggle}
+      />
     </aside>
   )
 }
@@ -211,13 +281,7 @@ function SidebarSkeleton() {
   )
 }
 
-function SessionGroup({
-  label,
-  children,
-}: {
-  label: string
-  children: React.ReactNode
-}) {
+function SessionGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-3">
       <div className="flex items-center gap-1.5 px-2 py-1.5 font-mono text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -341,4 +405,3 @@ function RenameField({
     />
   )
 }
-
