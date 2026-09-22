@@ -78,18 +78,3 @@ test("the sidebar filters sessions by name", async ({ page }) => {
   await page.getByPlaceholder("Search sessions").fill("definitely-not-a-session-name")
   await expect(page.getByText(name, { exact: true })).toHaveCount(0)
 })
-
-// /app/search renders a hardcoded RESULTS array (app/app/search/page.tsx) -
-// it is placeholder UI, not wired to real sessions or nodes yet. This test
-// describes the intended behaviour and is skipped until the page is real.
-test.fixme("the search page finds a node by its question", async ({ page }) => {
-  await signIn(page)
-  await openNewSession(page)
-  const needle = `needle-${Date.now()}`
-  await generate(page, `Find the ${needle} in the haystack`, 1)
-
-  await page.goto("/app/search")
-  await page.getByPlaceholder("Search sessions and nodes...").fill(needle)
-  await expect(page.getByText(/\d+ results?/)).toBeVisible()
-  await expect(page.getByText(new RegExp(needle)).first()).toBeVisible()
-})
